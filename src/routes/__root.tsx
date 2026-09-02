@@ -12,8 +12,10 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: APP_NAME },
+      { property: "og:title", content: APP_NAME },
       { name: "theme-color", content: "#f4f1ea" },
       { name: "description", content: "Modular Omni-Support Automata / Mimetic Operating System Architecture — humanoid mix-build hangar." },
+      { property: "og:description", content: "Modular Omni-Support Automata / Mimetic Operating System Architecture — humanoid mix-build hangar." },
     ],
     links: [
       { rel: "icon", href: "data:," },

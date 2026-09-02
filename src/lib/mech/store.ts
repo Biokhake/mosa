@@ -330,7 +330,7 @@ function emptySession(): SessionSlice {
     name: "FRAME-00",
     slots: defaultSlots(),
     theme: "light",
-    poseId: "aim",
+    poseId: "attention",
     panels: defaultPanels(),
     light: DEFAULT_VISOR,
     selected: "helm",
