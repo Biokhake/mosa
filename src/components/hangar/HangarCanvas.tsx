@@ -3,12 +3,21 @@ import { ContactShadows, OrbitControls, Grid } from "@react-three/drei";
 import { Suspense, useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { SLOTS, SLOT_BY_ID, BEAM_MELEE, GROUP_ROOT } from "@/lib/mech/catalog";
-import { GROUPS } from "@/lib/mech/types";
+import { SLOTS, BEAM_MELEE } from "@/lib/mech/catalog";
+import type { SlotDef } from "@/lib/mech/types";
+import {
+  RIG_NODE_BY_ID,
+  rigChildren,
+  nodeForSlot,
+  NODE_GROUP,
+  type RigNodeId,
+} from "@/lib/mech/rig";
 import { buildPart, disposePart } from "@/lib/mech/geometry";
 import { explodeDir, DEFAULT_VISOR } from "@/lib/mech/palette";
-import { poseOffsetFor, type PoseId } from "@/lib/mech/poses";
+import { poseNodeRotation, poseRoot, type PoseId } from "@/lib/mech/poses";
 import { useStudio } from "@/lib/mech/store";
+
+const DEG = Math.PI / 180;
 
 function SlotMesh({
   id,
@@ -46,64 +55,88 @@ function MechRig() {
   const poseId = useStudio((s) => s.poseId) as PoseId;
   const light = useStudio((s) => s.light) || slots.visor?.paint || DEFAULT_VISOR;
 
-  return (
-    <group>
-      {GROUPS.map((g) => {
-        const rootId = GROUP_ROOT[g.id];
-        const pivot = SLOT_BY_ID[rootId]?.socket ?? ([0, 0, 0] as const);
-        const gx = groupXform[g.id];
-        return (
-          <group
-            key={g.id}
-            position={[pivot[0] + (gx?.px ?? 0), pivot[1] + (gx?.py ?? 0), pivot[2] + (gx?.pz ?? 0)]}
-            rotation={[
-              ((gx?.rx ?? 0) * Math.PI) / 180,
-              ((gx?.ry ?? 0) * Math.PI) / 180,
-              ((gx?.rz ?? 0) * Math.PI) / 180,
-            ]}
-            scale={[gx?.sx ?? 1, gx?.sy ?? 1, gx?.sz ?? 1]}
-          >
-            {SLOTS.filter((def) => def.group === g.id).map((def) => {
-              const st = slots[def.id];
-              if (!st || !st.visible || st.variant === "none") return null;
-              const [dx, dy, dz] = explodeDir(def.socket);
-              const k = explode * 0.85;
-              const pose = poseOffsetFor(def.id, poseId);
-              const beam = BEAM_MELEE.has(st.variant);
-              return (
-                <group
-                  key={def.id}
-                  userData={{ slotId: def.id }}
-                  position={[
-                    def.socket[0] - pivot[0] + st.px + (pose.px ?? 0) + dx * k,
-                    def.socket[1] - pivot[1] + st.py + (pose.py ?? 0) + dy * k,
-                    def.socket[2] - pivot[2] + st.pz + (pose.pz ?? 0) + dz * k,
-                  ]}
-                  rotation={[
-                    ((st.rx + (pose.rx ?? 0)) * Math.PI) / 180,
-                    ((st.ry + (pose.ry ?? 0)) * Math.PI) / 180,
-                    ((st.rz + (pose.rz ?? 0)) * Math.PI) / 180,
-                  ]}
-                  scale={[st.sx, st.sy, beam ? 1 : st.sz]}
-                >
-                  <SlotMesh
-                    id={def.id}
-                    variant={st.variant}
-                    paint={st.paint}
-                    paint2={st.paint2 ?? null}
-                    light={light}
-                    edges={edges}
-                    theme={theme}
-                    beamZ={beam ? st.sz : 1}
-                  />
-                </group>
-              );
-            })}
-          </group>
-        );
-      })}
-    </group>
-  );
+  const slotsByNode = useMemo(() => {
+    const m = new Map<RigNodeId, SlotDef[]>();
+    for (const def of SLOTS) {
+      const n = nodeForSlot(def.id);
+      (m.get(n) ?? m.set(n, []).get(n)!).push(def);
+    }
+    return m;
+  }, []);
+
+  const root = poseRoot(poseId);
+
+  const renderNode = (id: RigNodeId) => {
+    const node = RIG_NODE_BY_ID[id];
+    const parent = node.parent ? RIG_NODE_BY_ID[node.parent] : null;
+    const pr = parent ? parent.rest : ([0, 0, 0] as const);
+    const isRoot = id === "root";
+    const pose = poseNodeRotation(id, poseId);
+    const gx = NODE_GROUP[id] ? groupXform[NODE_GROUP[id]!] : undefined;
+
+    // node transform: rest offset from parent, + pose rotation (+ whole-body
+    // attitude at the root), + this region's groupXform. Everything distal —
+    // this node's own slots AND its child nodes — inherits it.
+    const position: [number, number, number] = [
+      node.rest[0] - pr[0] + (gx?.px ?? 0) + (isRoot ? root.pos[0] : 0),
+      node.rest[1] - pr[1] + (gx?.py ?? 0) + (isRoot ? root.pos[1] : 0),
+      node.rest[2] - pr[2] + (gx?.pz ?? 0) + (isRoot ? root.pos[2] : 0),
+    ];
+    const rotation: [number, number, number] = [
+      (pose[0] + (gx?.rx ?? 0) + (isRoot ? root.rot[0] : 0)) * DEG,
+      (pose[1] + (gx?.ry ?? 0) + (isRoot ? root.rot[1] : 0)) * DEG,
+      (pose[2] + (gx?.rz ?? 0) + (isRoot ? root.rot[2] : 0)) * DEG,
+    ];
+    const scale: [number, number, number] = [gx?.sx ?? 1, gx?.sy ?? 1, gx?.sz ?? 1];
+
+    return (
+      <group key={id} position={position} rotation={rotation} scale={scale}>
+        {(slotsByNode.get(id) ?? []).map((def) => {
+          const st = slots[def.id];
+          if (!st || !st.visible || st.variant === "none") return null;
+          const [dx, dy, dz] = explodeDir(def.socket);
+          const k = explode * 0.85;
+          // groups with no rig node (back / weapon / extra) keep a per-slot xform
+          const wg =
+            def.group === "weapon" || def.group === "extra" || def.group === "back"
+              ? groupXform[def.group]
+              : undefined;
+          const beam = BEAM_MELEE.has(st.variant);
+          return (
+            <group
+              key={def.id}
+              userData={{ slotId: def.id }}
+              position={[
+                def.socket[0] - node.rest[0] + st.px + (wg?.px ?? 0) + dx * k,
+                def.socket[1] - node.rest[1] + st.py + (wg?.py ?? 0) + dy * k,
+                def.socket[2] - node.rest[2] + st.pz + (wg?.pz ?? 0) + dz * k,
+              ]}
+              rotation={[
+                (st.rx + (wg?.rx ?? 0)) * DEG,
+                (st.ry + (wg?.ry ?? 0)) * DEG,
+                (st.rz + (wg?.rz ?? 0)) * DEG,
+              ]}
+              scale={[st.sx, st.sy, beam ? 1 : st.sz]}
+            >
+              <SlotMesh
+                id={def.id}
+                variant={st.variant}
+                paint={st.paint}
+                paint2={st.paint2 ?? null}
+                light={light}
+                edges={edges}
+                theme={theme}
+                beamZ={beam ? st.sz : 1}
+              />
+            </group>
+          );
+        })}
+        {rigChildren(id).map((c) => renderNode(c.id))}
+      </group>
+    );
+  };
+
+  return <group>{renderNode("root")}</group>;
 }
 
 function slotIdOf(obj: THREE.Object3D | null): string | undefined {

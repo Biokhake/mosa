@@ -623,10 +623,11 @@ export function Studio() {
   );
 }
 
-function PoseIcon({ kind }: { kind: "attention" | "aim" }) {
+function PoseIcon({ kind }: { kind: string }) {
+  const p = { className: "size-6", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" } as const;
   if (kind === "attention") {
     return (
-      <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg viewBox="0 0 24 24" {...p}>
         <rect x="9.5" y="2.2" width="5" height="4.6" rx="0.7" />
         <path d="M12 7.2v8" />
         <path d="M8.6 8.6v6.6M15.4 8.6v6.6" />
@@ -635,8 +636,39 @@ function PoseIcon({ kind }: { kind: "attention" | "aim" }) {
       </svg>
     );
   }
+  if (kind === "flight") {
+    return (
+      <svg viewBox="0 0 24 24" {...p}>
+        <rect x="3.4" y="4.6" width="4.4" height="4.4" rx="0.7" transform="rotate(38 5.6 6.8)" />
+        <path d="M8 8.6 17 13" />
+        <path d="M9.5 6.5 4 3.6M9.5 10.5 4 12.8" />
+        <path d="m17 13 4.5 3.4M17 13l3.6 4.6" />
+      </svg>
+    );
+  }
+  if (kind === "shooting") {
+    return (
+      <svg viewBox="0 0 24 24" {...p}>
+        <rect x="13" y="2.4" width="5" height="4.4" rx="0.7" />
+        <path d="M15.5 7v6" />
+        <path d="M15.5 8.8 5 8" />
+        <path d="M15.5 10.5h-4v3" />
+        <path d="M15.5 13l-2.5 8M15.5 13l3 8" />
+      </svg>
+    );
+  }
+  if (kind === "sword") {
+    return (
+      <svg viewBox="0 0 24 24" {...p}>
+        <rect x="8" y="2.2" width="5" height="4.4" rx="0.7" />
+        <path d="M10.5 7v5.5" />
+        <path d="m10.5 8.6 8-4.2M10.5 11l-5 1.5" />
+        <path d="M10.5 12.5 8 21M10.5 12.5 14 21" />
+      </svg>
+    );
+  }
   return (
-    <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" {...p}>
       <rect x="9.3" y="2" width="5" height="4.4" rx="0.7" />
       <path d="M12 6.6v7.2" />
       <path d="M7.4 9.4h4.2v4.4" />
@@ -657,8 +689,15 @@ function PoseMenu({
   poseId: string;
   onPick: (id: string) => void;
 }) {
-  const left = `clamp(8px, ${x + 6}px, calc(100% - 108px))`;
+  const left = `clamp(8px, ${x + 6}px, calc(100% - 268px))`;
   const top = `clamp(8px, ${y + 6}px, calc(100% - 60px))`;
+  const items: { id: string; label: string }[] = [
+    { id: "attention", label: "Attention pose" },
+    { id: "aim", label: "Aim pose" },
+    { id: "flight", label: "Flight pose" },
+    { id: "shooting", label: "Shooting pose" },
+    { id: "sword", label: "Sword-strike pose" },
+  ];
   return (
     <div
       data-pose-menu
@@ -668,32 +707,22 @@ function PoseMenu({
       style={{ left, top }}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <button
-        type="button"
-        role="menuitem"
-        aria-label="Attention pose"
-        aria-pressed={poseId === "attention"}
-        onClick={() => onPick("attention")}
-        className={cn(
-          "flex size-11 items-center justify-center rounded-sm text-muted transition-[background-color,color] duration-[var(--motion-quick)] ease-[var(--ease-out)] hover:bg-surface hover:text-fg",
-          poseId === "attention" && "bg-surface text-fg",
-        )}
-      >
-        <PoseIcon kind="attention" />
-      </button>
-      <button
-        type="button"
-        role="menuitem"
-        aria-label="Current pose"
-        aria-pressed={poseId === "aim"}
-        onClick={() => onPick("aim")}
-        className={cn(
-          "flex size-11 items-center justify-center rounded-sm text-muted transition-[background-color,color] duration-[var(--motion-quick)] ease-[var(--ease-out)] hover:bg-surface hover:text-fg",
-          poseId === "aim" && "bg-surface text-fg",
-        )}
-      >
-        <PoseIcon kind="aim" />
-      </button>
+      {items.map((it) => (
+        <button
+          key={it.id}
+          type="button"
+          role="menuitem"
+          aria-label={it.label}
+          aria-pressed={poseId === it.id}
+          onClick={() => onPick(it.id)}
+          className={cn(
+            "flex size-11 items-center justify-center rounded-sm text-muted transition-[background-color,color] duration-[var(--motion-quick)] ease-[var(--ease-out)] hover:bg-surface hover:text-fg",
+            poseId === it.id && "bg-surface text-fg",
+          )}
+        >
+          <PoseIcon kind={it.id} />
+        </button>
+      ))}
     </div>
   );
 }

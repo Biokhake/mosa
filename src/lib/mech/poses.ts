@@ -1,103 +1,148 @@
-export type PoseOffset = {
-  px?: number;
-  py?: number;
-  pz?: number;
-  rx?: number;
-  ry?: number;
-  rz?: number;
+/**
+ * Preset poses — expressed as rotations on the render-rig nodes (`rig.ts`),
+ * applied with real forward kinematics and clamped to each node's rated range
+ * of motion. Five presets; the studio has no per-joint UI (that is a later
+ * pass), only this menu.
+ */
+
+import type { Vec3 } from "./types";
+import { NODE_ROM, RIG_NODES, clampNodeRotation } from "./rig";
+import type { RigNodeId } from "./rig";
+
+export type PoseId = "attention" | "aim" | "flight" | "shooting" | "sword";
+
+export const POSE_IDS: PoseId[] = ["attention", "aim", "flight", "shooting", "sword"];
+
+export interface Pose {
+  label: string;
+  /** per-node [rx, ry, rz] in degrees; missing node = neutral */
+  nodes: Partial<Record<RigNodeId, Vec3>>;
+  /** whole-body attitude at the root */
+  root?: { pos?: Vec3; rot?: Vec3 };
+}
+
+const RAW_POSES: Record<PoseId, Pose> = {
+  attention: {
+    label: "Attention",
+    nodes: {},
+  },
+
+  aim: {
+    label: "Aim",
+    nodes: {
+      torso: [3, 4, 0],
+      neck: [3, 6, 0],
+      shoulderR: [-16, 0, -6],
+      elbowR: [-58, 0, 0],
+      wristR: [0, 22, 0],
+      shoulderL: [-14, 0, 6],
+      elbowL: [-72, 0, 0],
+      wristL: [0, -28, 0],
+      hipR: [-8, 0, 4],
+      kneeR: [16, 0, 0],
+      ankleR: [-7, 0, 0],
+      hipL: [-6, 0, -4],
+      kneeL: [12, 0, 0],
+      ankleL: [-6, 0, 0],
+    },
+  },
+
+  flight: {
+    label: "Flight",
+    root: { pos: [0, 0.12, 0.02], rot: [26, 0, 0] },
+    nodes: {
+      torso: [-8, 0, 0],
+      neck: [-32, 0, 0],
+      shoulderR: [-38, 0, -12],
+      elbowR: [-14, 0, 0],
+      shoulderL: [-38, 0, 12],
+      elbowL: [-14, 0, 0],
+      hipR: [-12, 0, 3],
+      kneeR: [8, 0, 0],
+      ankleR: [30, 0, 0],
+      hipL: [-12, 0, -3],
+      kneeL: [8, 0, 0],
+      ankleL: [30, 0, 0],
+    },
+  },
+
+  shooting: {
+    label: "Shooting",
+    root: { pos: [0, -0.02, -0.02], rot: [3, 0, 0] },
+    nodes: {
+      torso: [2, 18, 0],
+      neck: [0, -20, 0],
+      shoulderR: [-58, -15, -18],
+      elbowR: [-95, 0, 0],
+      wristR: [0, 10, 0],
+      shoulderL: [-72, 10, 22],
+      elbowL: [-38, 0, 0],
+      wristL: [0, -12, 8],
+      hipR: [-8, -12, 10],
+      kneeR: [22, 0, 0],
+      ankleR: [-10, 0, 0],
+      hipL: [-16, 12, -6],
+      kneeL: [14, 0, 0],
+      ankleL: [-6, 0, 0],
+    },
+  },
+
+  sword: {
+    label: "Sword strike",
+    root: { pos: [0, -0.02, 0.03], rot: [6, -8, 3] },
+    nodes: {
+      torso: [6, -26, 4],
+      neck: [8, 20, 0],
+      shoulderR: [40, -18, -18],
+      elbowR: [-30, 0, 0],
+      wristR: [0, 0, -18],
+      shoulderL: [-15, 0, 30],
+      elbowL: [-45, 0, 0],
+      wristL: [0, 16, 0],
+      hipR: [-28, -10, 10],
+      kneeR: [45, 0, 0],
+      ankleR: [-12, 0, 0],
+      hipL: [12, 8, -8],
+      kneeL: [10, 0, 0],
+      ankleL: [22, 0, 0],
+    },
+  },
 };
 
-export type PoseId = "attention" | "aim";
+/** Bake ROM-clamped copies once. */
+export const POSES: Record<PoseId, Pose> = Object.fromEntries(
+  (Object.keys(RAW_POSES) as PoseId[]).map((id) => {
+    const p = RAW_POSES[id];
+    const nodes: Partial<Record<RigNodeId, Vec3>> = {};
+    for (const n of RIG_NODES) {
+      const r = p.nodes[n.id];
+      if (r) nodes[n.id] = clampNodeRotation(n.id, r);
+    }
+    let root = p.root;
+    if (root?.rot) {
+      const rom = NODE_ROM.root;
+      root = {
+        ...root,
+        rot: [
+          Math.max(-90, Math.min(90, root.rot[0])),
+          root.rot[1],
+          Math.max(rom.rz![0], Math.min(rom.rz![1], root.rot[2])),
+        ],
+      };
+    }
+    return [id, { ...p, nodes, root }];
+  }),
+) as Record<PoseId, Pose>;
 
-const ZERO: PoseOffset = {};
+const ZERO: Vec3 = [0, 0, 0];
 
-/** Heels together, arms at the sides — 차렷 (Attention Pose). Base sockets provide the true zero-gap A-pose. */
-export const ATTENTION_POSE: Record<string, PoseOffset> = {};
+/** This pose's rotation (degrees) for a node. */
+export function poseNodeRotation(nodeId: RigNodeId, poseId: PoseId): Vec3 {
+  return POSES[poseId]?.nodes[nodeId] ?? ZERO;
+}
 
-/** Shoulder-width stance, arms slightly folded forward into a shooting rest pose. */
-export const DEFAULT_POSE: Record<string, PoseOffset> = {
-  helm: { rx: 3, ry: 5 },
-  visor: { rx: 3, ry: 5 },
-  brow: { rx: 3, ry: 5 },
-  eyeR: { rx: 3, ry: 5 },
-  eyeL: { rx: 3, ry: 5 },
-  nose: { rx: 3, ry: 5 },
-  mouth: { rx: 3, ry: 5 },
-  jaw: { rx: 3, ry: 5 },
-  chin: { rx: 3, ry: 5 },
-  cheekR: { rx: 3, ry: 5 },
-  cheekL: { rx: 3, ry: 5 },
-  earR: { rx: 3, ry: 5 },
-  earL: { rx: 3, ry: 5 },
-  vfin: { rx: 3, ry: 5 },
-  antennaR: { rx: 3, ry: 5 },
-  antennaL: { rx: 3, ry: 5 },
-
-  chestCore: { rx: 2, ry: 3 },
-  pecR: { rx: 2, ry: 3 },
-  pecL: { rx: 2, ry: 3 },
-  abdomen: { rx: 2, ry: 2 },
-  collar: { ry: 2 },
-  pelvis: { py: -0.01 },
-  pack: { rx: 3 },
-  binderR: { rz: 4, rx: 4 },
-  binderL: { rz: -4, rx: 4 },
-
-  hipR: { px: 0.04, rz: 3 },
-  hipL: { px: -0.04, rz: -3 },
-  thighR: { px: 0.05, rz: 4, rx: -4 },
-  thighL: { px: -0.05, rz: -4, rx: -3 },
-  kneeR: { px: 0.05, rz: 3, rx: 4 },
-  kneeL: { px: -0.05, rz: -3, rx: 3 },
-  shinR: { px: 0.06, rz: 2, rx: 4 },
-  shinL: { px: -0.06, rz: -2, rx: 3 },
-  ankleR: { px: 0.06, rz: 1 },
-  ankleL: { px: -0.06, rz: -1 },
-  footR: { px: 0.06 },
-  footL: { px: -0.06 },
-
-  shoulderR: { rx: -6, rz: -4, pz: 0.01 },
-  upperR: { py: 0.02, pz: 0.04, rx: -16, rz: -3 },
-  elbowR: { py: 0.04, pz: 0.08, rx: -22 },
-  forearmR: { py: 0.06, pz: 0.12, rx: -24 },
-  vambraceR: { py: 0.07, pz: 0.14, rx: -24 },
-  handR: { px: -0.02, py: 0.09, pz: 0.18, rx: -20, ry: 45 },
-  weaponR: { py: 0.09, pz: 0.20 },
-  extra1: { pz: 0.02, rx: -5 },
-  extra9: { py: 0.06, pz: 0.13, rx: -24 },
-
-  shoulderL: { rx: -5, rz: 4, pz: 0.01 },
-  upperL: { py: 0.01, pz: 0.03, rx: -12, rz: 4 },
-  elbowL: { py: 0.03, pz: 0.07, rx: -18 },
-  forearmL: { py: 0.05, pz: 0.10, rx: -20 },
-  vambraceL: { py: 0.06, pz: 0.12, rx: -20 },
-  handL: { px: 0.02, py: 0.07, pz: 0.15, rx: -18, ry: -45 },
-  weaponL: { py: 0.06, pz: 0.17 },
-  shield: { py: 0.08, pz: 0.12 },
-  extra2: { pz: 0.02, rx: -4 },
-  extra10: { py: 0.05, pz: 0.11, rx: -20 },
-};
-
-export const POSES: Record<PoseId, Record<string, PoseOffset>> = {
-  attention: ATTENTION_POSE,
-  aim: DEFAULT_POSE,
-};
-
-export function poseOffsetFor(slotId: string, poseId: PoseId | Record<string, PoseOffset> = "aim"): PoseOffset {
-  const parts = typeof poseId === "string" ? (POSES[poseId] ?? DEFAULT_POSE) : poseId;
-  if (parts[slotId]) return parts[slotId]!;
-  const base = slotId.replace(/[LR]$/, "");
-  const src = parts[base];
-  if (!src) return ZERO;
-  if (/L$/.test(slotId) || slotId === "weaponL") {
-    return {
-      px: src.px != null ? -src.px : undefined,
-      py: src.py,
-      pz: src.pz,
-      rx: src.rx,
-      ry: src.ry != null ? -src.ry : undefined,
-      rz: src.rz != null ? -src.rz : undefined,
-    };
-  }
-  return src;
+/** This pose's whole-body root attitude. */
+export function poseRoot(poseId: PoseId): { pos: Vec3; rot: Vec3 } {
+  const r = POSES[poseId]?.root;
+  return { pos: r?.pos ?? ZERO, rot: r?.rot ?? ZERO };
 }
