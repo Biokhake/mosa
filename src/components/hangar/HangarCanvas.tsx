@@ -70,22 +70,21 @@ function MechRig() {
     const node = RIG_NODE_BY_ID[id];
     const parent = node.parent ? RIG_NODE_BY_ID[node.parent] : null;
     const pr = parent ? parent.rest : ([0, 0, 0] as const);
-    const isRoot = id === "root";
     const pose = poseNodeRotation(id, poseId);
     const gx = NODE_GROUP[id] ? groupXform[NODE_GROUP[id]!] : undefined;
 
-    // node transform: rest offset from parent, + pose rotation (+ whole-body
-    // attitude at the root), + this region's groupXform. Everything distal —
-    // this node's own slots AND its child nodes — inherits it.
+    // node transform: rest offset from parent + pose rotation + this region's
+    // groupXform. Everything distal — this node's own slots AND its child
+    // nodes — inherits it. (Whole-body attitude is on the outer wrapper.)
     const position: [number, number, number] = [
-      node.rest[0] - pr[0] + (gx?.px ?? 0) + (isRoot ? root.pos[0] : 0),
-      node.rest[1] - pr[1] + (gx?.py ?? 0) + (isRoot ? root.pos[1] : 0),
-      node.rest[2] - pr[2] + (gx?.pz ?? 0) + (isRoot ? root.pos[2] : 0),
+      node.rest[0] - pr[0] + (gx?.px ?? 0),
+      node.rest[1] - pr[1] + (gx?.py ?? 0),
+      node.rest[2] - pr[2] + (gx?.pz ?? 0),
     ];
     const rotation: [number, number, number] = [
-      (pose[0] + (gx?.rx ?? 0) + (isRoot ? root.rot[0] : 0)) * DEG,
-      (pose[1] + (gx?.ry ?? 0) + (isRoot ? root.rot[1] : 0)) * DEG,
-      (pose[2] + (gx?.rz ?? 0) + (isRoot ? root.rot[2] : 0)) * DEG,
+      (pose[0] + (gx?.rx ?? 0)) * DEG,
+      (pose[1] + (gx?.ry ?? 0)) * DEG,
+      (pose[2] + (gx?.rz ?? 0)) * DEG,
     ];
     const scale: [number, number, number] = [gx?.sx ?? 1, gx?.sy ?? 1, gx?.sz ?? 1];
 
@@ -136,7 +135,15 @@ function MechRig() {
     );
   };
 
-  return <group>{renderNode("root")}</group>;
+  // whole-body attitude (flight pitch, sword crouch...) on an outer wrapper
+  return (
+    <group
+      position={[root.pos[0], root.pos[1], root.pos[2]]}
+      rotation={[root.rot[0] * DEG, root.rot[1] * DEG, root.rot[2] * DEG]}
+    >
+      {renderNode("root")}
+    </group>
+  );
 }
 
 function slotIdOf(obj: THREE.Object3D | null): string | undefined {
