@@ -152,13 +152,18 @@ function slotSalt(id: string) {
   return Math.abs(n);
 }
 
+const NO_DRESS = new Set([
+  // joints — self-contained mechanical parts
+  "elbow", "knee", "hip", "ankle",
+  // every head feature — each is authored complete; generic dressing here
+  // just produces small boxes floating off the face.
+  "helm", "visor", "brow", "eye", "nose", "mouth", "jaw", "ear", "vfin", "antenna", "cheek", "chin",
+]);
+
 function dressPart2(prim: Spec[], r: Recipe, slotId: string): Spec[] {
   if (!prim.length) return [];
-  // For joints or detailed head parts, avoid generic dressing clutter
   const b = base(slotId);
-  if (["elbow", "knee", "hip", "ankle", "eye", "visor", "mouth", "nose", "chin"].includes(b)) {
-    return [];
-  }
+  if (NO_DRESS.has(b)) return [];
 
   const box = primBounds(prim);
   const { cy, cz, w, h, d, minY } = box;

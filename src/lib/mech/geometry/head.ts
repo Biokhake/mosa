@@ -112,102 +112,103 @@ export function helm(r: Recipe): Spec[] {
  */
 export function visor(r: Recipe): Spec[] {
   const t = r.thick;
+  const dna = generateKitDNA(r.code.id);
+  const hh = dna.hash;
   const isCurved = r.quad === "RS" || r.quad === "RR";
-  const style = faceStyle(r, 5, 5); // 0..4 — the visor "face" of this unit
+  const seg = r.quad === "SS" ? 4 : r.quad === "SR" ? 8 : Math.max(12, r.segs);
+  const form = hh % 12; // 12 base faces
+  const skew = (((hh >>> 4) % 7) - 3) * 0.14; // -0.42..0.42 roll
+  const bw = (0.052 + ((hh >>> 7) % 6) * 0.006) * t; // lens half-width unit
+  const bh = 0.018 + ((hh >>> 10) % 5) * 0.006; // lens height unit
+  const framed = ((hh >>> 14) & 1) === 1;
+  const pitch = isCurved ? 0.24 : 0.13;
+  const zc = isCurved ? 0.052 : 0.046;
+  const V = "visor" as const;
   const out: Spec[] = [];
-  const vw = 0.2 * t;
 
-  if (isCurved) {
-    // --- RS & RR: full curved display screen, 5 distinct faces ---
-    const seg = r.segs;
-    if (style === 0) {
-      // wide panoramic screen
+  // Recessed dark socket — EVERY visor form is seated in this, never floating.
+  out.push(B("dark", bw * 2.5, bh * 3 + 0.03, 0.05, 0, 0.004, zc - 0.03, pitch, 0, 0));
+  const eye = (x: number) =>
+    out.push(C("glow", bh * 0.55, bh * 0.55, 0.018, x, 0.004, zc + 0.008, Math.PI / 2, 0, 0, 8));
+
+  switch (form) {
+    case 0: // single horizontal band
       out.push(
-        Capsule("visor", 0.11 * t, 0.07, 0, -0.004, 0.045, 0.3, 0, 0, seg),
-        Torus("dark", 0.115 * t, 0.008, 0, -0.004, 0.04, 0.3, 0, 0),
-        B("glow", vw * 0.78, 0.008, 0.02, 0, 0.006, 0.085, 0.3, 0, 0),
+        B(V, bw * 2, bh, 0.03, 0, 0.006, zc, pitch, 0, skew * 0.4),
+        B("glow", bw * 1.3, bh * 0.4, 0.02, 0, 0.006, zc + 0.008, pitch, 0, skew * 0.4),
       );
-    } else if (style === 1) {
-      // wraparound screen with lateral wing strakes
+      break;
+    case 1: // twin stacked bands
       out.push(
-        Capsule("visor", 0.1 * t, 0.085, 0, 0, 0.045, 0.35, 0, 0, seg),
-        B("dark", 0.014, 0.15, 0.055, -vw * 0.56, -0.01, 0.03, 0.25, 0.22, 0),
-        B("dark", 0.014, 0.15, 0.055, vw * 0.56, -0.01, 0.03, 0.25, -0.22, 0),
-        C("glow", 0.011, 0.011, 0.02, -0.045 * t, 0.012, 0.08, 0.32, 0, 0, 8),
-        C("glow", 0.011, 0.011, 0.02, 0.045 * t, 0.012, 0.08, 0.32, 0, 0, 8),
+        B(V, bw * 1.9, bh * 0.5, 0.03, 0, bh * 0.7, zc, pitch, 0, skew * 0.3),
+        B(V, bw * 1.5, bh * 0.42, 0.03, 0, -bh * 0.7, zc, pitch, 0, skew * 0.3),
       );
-    } else if (style === 2) {
-      // slim horizon band on a matte faceplate
+      break;
+    case 2: // V / chevron
       out.push(
-        Capsule("dark", 0.11 * t, 0.05, 0, 0, 0.05, 0.3, 0, 0, seg),
-        B("visor", vw * 0.82, 0.02, 0.03, 0, 0.02, 0.075, 0.28, 0, 0),
-        B("glow", vw * 0.5, 0.006, 0.02, 0, 0.02, 0.09, 0.28, 0, 0),
+        B(V, bw * 1.3, bh, 0.03, -bw * 0.55, 0.004, zc, pitch, 0, 0.5 + skew),
+        B(V, bw * 1.3, bh, 0.03, bw * 0.55, 0.004, zc, pitch, 0, -0.5 - skew),
+        B("glow", bw * 0.5, bh * 0.4, 0.018, 0, -bh * 0.4, zc + 0.006, pitch, 0, 0),
       );
-    } else if (style === 3) {
-      // domed bubble canopy
+      break;
+    case 3: // inverted triangle 역삼각형
+      out.push(Trap(V, bw * 2.2, bw * 0.3, bh * 3.4, 0, 0, zc, pitch, 0, skew * 0.3, 0.03));
+      break;
+    case 4: // diamond
       out.push(
-        { t: "hemi", m: "visor", s: [0.1 * t, 0, 0], p: [0, 0.02, 0.05], r: [0.2, 0, 0] },
-        Torus("metal", 0.1 * t, 0.008, 0, 0.01, 0.03, 0.3, 0, 0),
-        C("glow", 0.02, 0.02, 0.02, 0, 0.02, 0.11, Math.PI / 2, 0, 0, 12),
+        B(V, bw * 1.15, bw * 1.15, 0.03, 0, 0.004, zc, pitch, 0, Math.PI / 4 + skew * 0.3),
+        B("glow", bw * 0.5, bw * 0.5, 0.018, 0, 0.004, zc + 0.008, pitch, 0, Math.PI / 4),
       );
-    } else {
-      // split hemispheres (twin eye pods behind one gasket)
+      break;
+    case 5: // X cross
       out.push(
-        Capsule("dark", 0.11 * t, 0.055, 0, 0, 0.045, 0.28, 0, 0, seg),
-        C("visor", 0.035 * t, 0.035 * t, 0.03, -0.05 * t, 0.02, 0.075, Math.PI / 2, 0, 0, seg),
-        C("visor", 0.035 * t, 0.035 * t, 0.03, 0.05 * t, 0.02, 0.075, Math.PI / 2, 0, 0, seg),
-        C("glow", 0.016, 0.016, 0.022, -0.05 * t, 0.02, 0.088, Math.PI / 2, 0, 0, 10),
-        C("glow", 0.016, 0.016, 0.022, 0.05 * t, 0.02, 0.088, Math.PI / 2, 0, 0, 10),
+        B(V, bw * 2.3, bh * 0.7, 0.028, 0, 0.004, zc, pitch, 0, 0.62),
+        B(V, bw * 2.3, bh * 0.7, 0.028, 0, 0.004, zc, pitch, 0, -0.62),
       );
-    }
-  } else {
-    // --- SS & SR: tactical armored visor, 5 distinct faces ---
-    const sides = r.quad === "SS" ? 4 : 8;
-    if (style === 0) {
-      // single recessed band + emitter notch
+      break;
+    case 6: // plus cross
       out.push(
-        C("visor", 0.038 * t, 0.042 * t, 0.18 * t, 0, 0.01, 0.04, 0, 0, Math.PI / 2, sides),
-        B("dark", 0.02 * t, 0.05, 0.05, 0, 0.01, 0.055),
-        C("glow", 0.009, 0.009, 0.02, 0, -0.01, 0.065, Math.PI / 2, 0, 0, 8),
+        B(V, bw * 2, bh * 0.6, 0.028, 0, 0.004, zc, pitch, 0, skew * 0.3),
+        B(V, bh * 1.4, bh * 3.6, 0.028, 0, 0.004, zc, pitch, 0, skew * 0.3),
       );
-    } else if (style === 1) {
-      // twin horizontal slits split by a bridge
+      break;
+    case 7: // single cyclops eye
+      out.push(C(V, bw * 0.8, bw * 0.8, 0.032, 0, 0.004, zc, Math.PI / 2, 0, 0, seg));
+      eye(0);
+      break;
+    case 8: // dual round eyes
       out.push(
-        B("dark", vw, 0.06, 0.05, 0, 0.008, 0.045, 0.12, 0, 0),
-        B("visor", vw * 0.42, 0.016, 0.03, -vw * 0.26, 0.016, 0.065, 0.12, 0, 0),
-        B("visor", vw * 0.42, 0.016, 0.03, vw * 0.26, 0.016, 0.065, 0.12, 0, 0),
-        B("glow", vw * 0.34, 0.006, 0.02, -vw * 0.26, 0.016, 0.078, 0.12, 0, 0),
-        B("glow", vw * 0.34, 0.006, 0.02, vw * 0.26, 0.016, 0.078, 0.12, 0, 0),
+        C(V, bw * 0.55, bw * 0.55, 0.032, -bw * 0.72, 0.004, zc, Math.PI / 2, 0, 0, seg),
+        C(V, bw * 0.55, bw * 0.55, 0.032, bw * 0.72, 0.004, zc, Math.PI / 2, 0, 0, seg),
       );
-    } else if (style === 2) {
-      // aggressive V-notch visor
+      eye(-bw * 0.72);
+      eye(bw * 0.72);
+      break;
+    case 9: // wraparound curved screen
       out.push(
-        B("dark", vw * 0.95, 0.07, 0.05, 0, 0.005, 0.04, 0.1, 0, 0),
-        B("visor", vw * 0.5, 0.02, 0.03, -vw * 0.22, 0.012, 0.065, 0.1, 0, 0.32),
-        B("visor", vw * 0.5, 0.02, 0.03, vw * 0.22, 0.012, 0.065, 0.1, 0, -0.32),
-        C("glow", 0.01, 0.01, 0.02, 0, -0.006, 0.07, Math.PI / 2, 0, 0, 6),
+        B(V, bw * 2.1, bh * 1.5, 0.034, 0, 0.004, zc, pitch, 0, 0),
+        B("glow", bw * 1.5, bh * 0.4, 0.02, 0, 0.004, zc + 0.01, pitch, 0, 0),
       );
-    } else if (style === 3) {
-      // wide mono screen with a chamfered frame
+      break;
+    case 10: // hex mono screen
       out.push(
-        Trap("dark", vw * 0.8, vw, 0.07, 0, 0.006, 0.038, 0.12, 0, 0, 0.05),
-        B("visor", vw * 0.82, 0.03, 0.03, 0, 0.01, 0.062, 0.12, 0, 0),
-        B("glow", vw * 0.6, 0.008, 0.02, 0, 0.01, 0.076, 0.12, 0, 0),
+        C(V, bw * 1, bw * 1, 0.032, 0, 0.004, zc, Math.PI / 2, 0, skew * 0.3, 6),
+        B("glow", bw * 0.9, bh * 0.35, 0.02, 0, 0.004, zc + 0.012, pitch, 0, 0),
       );
-    } else {
-      // stepped brow visor with a heavy hood
+      break;
+    default: // 11 — asymmetric angled slash
       out.push(
-        B("sec", vw * 1.06, 0.028, 0.08, 0, 0.05, 0.05, 0.28, 0, 0),
-        C("visor", 0.036 * t, 0.04 * t, 0.17 * t, 0, 0.005, 0.045, 0, 0, Math.PI / 2, sides),
-        B("dark", 0.02 * t, 0.045, 0.05, 0, 0.005, 0.06),
-        C("glow", 0.009, 0.009, 0.02, 0, -0.012, 0.068, Math.PI / 2, 0, 0, 8),
+        B(V, bw * 2, bh * 0.9, 0.03, 0, 0.004, zc, pitch, 0, 0.28 + skew),
+        B("glow", bw * 1, bh * 0.3, 0.02, bw * 0.3, 0.004, zc + 0.01, pitch, 0, 0.28 + skew),
       );
-    }
+      break;
   }
 
-  // M~Z adds one slim layered brow rail (only when the style has no hood).
-  if (r.ornate && style !== 4) {
-    out.push(B("trim", 0.15 * t, 0.012, 0.035, 0, 0.05, 0.062));
+  if (framed) {
+    out.push(Torus("metal", bw * 1.5, 0.005, 0, 0.004, zc - 0.006, pitch, 0, 0));
+  }
+  if (r.ornate) {
+    out.push(B("trim", bw * 2.3, 0.01, 0.03, 0, bh * 2 + 0.016, zc - 0.004, pitch, 0, 0));
   }
 
   return out;
@@ -219,16 +220,9 @@ export function visor(r: Recipe): Spec[] {
 export function brow(r: Recipe): Spec[] {
   const t = r.thick;
   const isCurved = r.quad === "RS" || r.quad === "RR";
-  // The visor already carries the hood/bezel; the brow is only a slim
-  // integrated eyebrow ridge so the face doesn't double up.
-  const hooded = faceStyle(r, 5, 5) === 4;
+  // The visor socket carries the bezel; the brow is only a slim integrated
+  // eyebrow ridge so the face never doubles up.
   const out: Spec[] = [];
-
-  if (hooded) {
-    // visor style already has a heavy hood — just a centre camera nub
-    out.push(C("metal", 0.009, 0.009, 0.03, 0, 0.03, 0.066, 0.32, 0, 0, 8));
-    return out;
-  }
 
   if (isCurved) {
     out.push(
@@ -412,40 +406,65 @@ export function ear(r: Recipe, isLeft: boolean): Spec[] {
  */
 export function vfin(r: Recipe): Spec[] {
   const t = r.thick;
+  const hh = generateKitDNA(r.code.id).hash;
+  const kind = (hh >>> 3) % 8; // 8 crest archetypes
+  const sweep = 0.14 + ((hh >>> 6) % 6) * 0.1; // 0.14..0.64
+  const ht = 0.1 + ((hh >>> 9) % 6) * 0.028; // 0.1..0.24
+  const asym = ((hh >>> 12) & 1) === 1;
   const out: Spec[] = [];
 
-  if (r.quad === "RS") {
-    // RS: Aerodynamic swept shark fin crest
-    out.push(
-      B("prim", 0.018, 0.16, 0.22, 0, 0.05, 0.02, 0.5, 0, 0),
-      B("acc", 0.012, 0.04, 0.14, 0, 0.09, -0.02, 0.5, 0, 0),
-      C("metal", 0.008, 0.008, 0.04, 0, 0.01, 0.04, 0, 0, Math.PI / 2, 6),
-    );
-  } else if (r.quad === "RR") {
-    // RR: Streamlined low-profile dome crest / aerodynamic ridge
-    out.push(
-      Capsule("prim", 0.035 * t, 0.12, 0, 0.03, 0.01, 0.45, 0, 0, r.segs),
-      B("trim", 0.014 * t, 0.01, 0.14, 0, 0.05, 0.01, 0.45, 0, 0),
-    );
-  } else if (r.quad === "SS") {
-    // SS: Razor-sharp geometric tactical V-Fin with angular chamfers
-    out.push(
-      // Center mounting gem / sensor bracket
-      B("sec", 0.045 * t, 0.045, 0.04, 0, 0.01, 0.03),
-      C("glow", 0.012, 0.012, 0.02, 0, 0.01, 0.05, Math.PI / 2, 0, 0, 4),
-      // Left swept blade
-      B("prim", 0.014, 0.18, 0.04, -0.11 * t, 0.07, 0.015, 0.2, 0, -0.58),
-      // Right swept blade
-      B("prim", 0.014, 0.18, 0.04, 0.11 * t, 0.07, 0.015, 0.2, 0, 0.58),
-    );
-  } else {
-    // SR: Reinforced tactical command crest with dual antenna prongs
-    out.push(
-      B("prim", 0.08 * t, 0.06, 0.05, 0, 0.02, 0.02),
-      C("metal", 0.008, 0.008, 0.16, -0.05 * t, 0.08, 0, 0.15, 0, -0.2, 8),
-      C("metal", 0.008, 0.008, 0.16, 0.05 * t, 0.08, 0, 0.15, 0, 0.2, 8),
-      B("acc", 0.03 * t, 0.03, 0.03, 0, 0.03, 0.04),
-    );
+  // Base mount — the crest ALWAYS grows out of this, sunk into the helm top.
+  out.push(B("sec", 0.055 * t, 0.03, 0.05, 0, -0.004, 0.012));
+
+  switch (kind) {
+    case 0: // classic twin V-fin
+      out.push(
+        B("prim", 0.014, ht, 0.045, -0.05 * t, ht * 0.42, 0.004, 0.16, 0, -sweep),
+        B("prim", 0.014, ht, 0.045, 0.05 * t, ht * 0.42, 0.004, 0.16, 0, sweep),
+        B("acc", 0.02 * t, 0.02, 0.03, 0, 0.008, 0.03),
+      );
+      break;
+    case 1: // twin comm antenna prongs
+      out.push(
+        C("metal", 0.005, 0.008, ht * 1.4, -0.028 * t, ht * 0.6, 0, 0.1, 0, -sweep * 0.55, 8),
+        C("metal", 0.005, 0.008, ht * 1.4, 0.028 * t, ht * 0.6, 0, 0.1, 0, sweep * 0.55, 8),
+      );
+      break;
+    case 2: // horn pair
+      out.push(
+        N("prim", 0.003, 0.017, ht, -0.032 * t, ht * 0.4, 0, 0.12, 0, -sweep),
+        N("prim", 0.003, 0.017, ht, 0.032 * t, ht * 0.4, 0, 0.12, 0, sweep),
+      );
+      break;
+    case 3: // single dorsal shark blade
+      out.push(B("prim", 0.016, ht * 1.3, 0.15, 0, ht * 0.5, -0.03, sweep * 0.9, 0, 0));
+      break;
+    case 4: {
+      // crown of short spikes
+      const n = 3 + ((hh >>> 15) % 3);
+      for (let i = 0; i < n; i++) {
+        const f = n === 1 ? 0 : i / (n - 1) - 0.5;
+        out.push(
+          N("prim", 0.003, 0.012, ht * (1 - Math.abs(f) * 0.5), f * 0.12 * t, ht * 0.3, 0, 0.12, 0, f * sweep * 2.2),
+        );
+      }
+      break;
+    }
+    case 5: // mono centre spike
+      out.push(N("prim", 0.004, 0.026, ht * 1.7, 0, ht * 0.7 + 0.01, 0, 0.04, 0, 0));
+      break;
+    case 6: // halo ring behind the head
+      out.push(Torus("trim", 0.085 * t, 0.007, 0, 0.09, -0.03, 0.25, 0, 0));
+      break;
+    default: // 7 — single swept comm blade (asymmetric flair)
+      out.push(
+        B("prim", 0.014, ht * 1.2, 0.06, (asym ? 0.045 : 0) * t, ht * 0.5, 0, 0.18, 0, sweep * (asym ? 1 : 0.55)),
+      );
+  }
+
+  if (asym && kind === 0) {
+    // one blade grows longer — breaks the strict symmetry
+    out.push(B("acc", 0.01, ht * 0.55, 0.03, 0.055 * t, ht * 0.75, 0, 0.16, 0, sweep * 1.3));
   }
 
   return out;

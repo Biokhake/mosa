@@ -115,16 +115,17 @@ function shp(
 
 /**
  * =========================================================================
- * Layered accent stack (Master Prompt 8.0 —묘수 1 & 3, revised).
+ * Part-2 decoration bonded to the Part-1 shell.
  *
- * A pyramidal Part-2 decoration sitting ON the Part-1 shell — never a pile of
- * same-size plates and never 3+ tiers stacked at one spot:
- *   - the plate underneath is always clearly the largest, each successive
- *     plate is markedly smaller (≈0.6×), so it reads as a stepped crest;
- *   - only 2 tiers by default (3 only for the busiest kits), hugging the
- *     shell face with a small proud step — cohesive, not floating;
- *   - the accent primitive is the DNA *accent* family (≠ base = cross-combined)
- *     and only the top plate takes any twist.
+ * Feedback pass:
+ *   - the "same-morpheme stepped stack" is now ONE composition out of five
+ *     (~20% of kits) instead of the default — the rest get a single hero
+ *     panel, a flush rib set, an asymmetric plate, or a minimal node.
+ *   - every element is seated so its back face is embedded in the shell
+ *     front (lz < shell front): Part 2 is always flush on Part 1, never
+ *     floating in front of it.
+ *   - cone/dome accents are remapped to a panel family here so body
+ *     armour stays plate-like (the pointy shapes live on the visor/crest).
  * =========================================================================
  */
 function layeredAccents(
@@ -138,18 +139,39 @@ function layeredAccents(
   mats: MatKey[] = ["sec", "trim"],
 ): Spec[] {
   const out: Spec[] = [];
-  const tiers = dna.layerCount >= 5 ? 3 : 2;
   const front = cz + baseDepth * 0.5;
-  const shrink = [0.68, 0.42, 0.24];
-  let lz = front;
-  for (let i = 0; i < tiers; i++) {
-    const lw = w * shrink[i]!;
-    const lh = h * shrink[i]!;
-    const ld = Math.max(0.016, baseDepth * (0.34 - i * 0.08));
-    lz += i === 0 ? baseDepth * 0.08 : Math.max(0.012, ld * 0.7);
-    const ly = cy + i * h * 0.045;
-    const yaw = i === tiers - 1 ? dna.twist * 0.8 : 0;
-    out.push(shp(dna.accentShape, mats[Math.min(i, mats.length - 1)]!, lw, lh, ld, cx, ly, lz, yaw));
+  const m0 = mats[0]!;
+  const m1 = mats[Math.min(1, mats.length - 1)]!;
+  const panel =
+    dna.accentShape === SHAPE.CONE || dna.accentShape === SHAPE.DOME
+      ? SHAPE.TRAP
+      : dna.accentShape;
+  const mode = dna.hash % 10;
+
+  if (mode < 2) {
+    // ~20% — the stepped crest: big under-plate, one clearly smaller cap.
+    const aw = w * 0.64;
+    const ah = h * 0.66;
+    const ad0 = Math.max(0.02, baseDepth * 0.4);
+    out.push(shp(panel, m0, aw, ah, ad0, cx, cy, front - ad0 * 0.4, 0));
+    const ad1 = Math.max(0.016, baseDepth * 0.26);
+    out.push(shp(panel, m1, aw * 0.5, ah * 0.5, ad1, cx, cy + h * 0.06, front - ad0 * 0.4 + ad0 * 0.35, dna.twist * 0.7));
+  } else if (mode < 6) {
+    // ~40% — a single asymmetric hero panel embedded in the shell face.
+    const aw = w * 0.6;
+    const ah = h * 0.74;
+    const ad = Math.max(0.02, baseDepth * 0.44);
+    out.push(shp(panel, m0, aw, ah, ad, cx + dna.splay * w * 0.18, cy + h * 0.02, front - ad * 0.45, dna.twist * 0.5));
+  } else if (mode < 8) {
+    // ~20% — a flush rib / louver set, sitting right on the surface.
+    const n = 2 + ((dna.hash >> 4) % 3);
+    for (let i = 0; i < n; i++) {
+      const gy = (i - (n - 1) / 2) * h * 0.17;
+      out.push(B(m0, w * 0.52, Math.max(0.01, h * 0.08), Math.max(0.014, baseDepth * 0.2), cx, cy + gy, front - baseDepth * 0.06, 0, 0, dna.twist * 0.2));
+    }
+  } else {
+    // ~20% — minimal: one small node hugging the surface.
+    out.push(shp(panel, m0, w * 0.3, h * 0.3, Math.max(0.016, baseDepth * 0.3), cx + dna.splay * w * 0.3, cy - h * 0.12, front - baseDepth * 0.08, 0));
   }
   return out;
 }
@@ -239,30 +261,28 @@ export function buildLayeredShin(kit: ParsedKit, t: number, _s: number, _detailL
   // front tibial deflector strip
   out.push(B("trim", 0.026 * t, 0.14 * t, 0.02, 0, -0.01, 0.02 + mainD * 0.55, -0.12, 0, 0));
 
-  // LAYER 3: ACCENT — knee striker (Part 2) + one pyramidal mid-calf crest.
-  // Everything stays above y = -0.05 so nothing rides the ankle.
+  // LAYER 3: ACCENT — knee striker seated ON the greave top-front, plus the
+  // shared Part-2 decoration (which is mostly a single hero panel now).
+  const greaveFront = 0.02 + mainD / 2;
   const kneeShape = archetype === "beast" ? SHAPE.CONE : dna.accentShape;
-  out.push(shp(kneeShape, "sec", 0.11 * t, 0.12 * t, mainD * 0.6, 0, 0.135, 0.055, 0.4));
-  // big under-plate then a smaller proud plate — a stepped crest, not a stack
-  out.push(
-    shp(dna.accentShape, "sec", topW * t * 0.66, 0.13 * t, mainD * 0.34, 0, 0.03, 0.02 + mainD * 0.55, 0),
-    shp(dna.accentShape, "trim", topW * t * 0.4, 0.08 * t, mainD * 0.24, 0, 0.05, 0.02 + mainD * 0.8, dna.twist * 0.8),
-  );
+  out.push(shp(kneeShape, "sec", 0.1 * t, 0.11 * t, mainD * 0.55, 0, 0.115, greaveFront - mainD * 0.25, 0.25));
+  out.push(...layeredAccents(dna, 0, 0.0, 0.02, topW * t * 0.9, 0.16 * t, mainD, ["sec", "trim"]));
 
-  // LAYER 3C: outer calf booster / stabilizer fin
-  const flankX = 0.09 * t;
+  // LAYER 3C: outer calf fin — ROOTED inside the greave side (x within the
+  // shell), sweeping out and back. Never floating off the leg.
+  const rootX = 0.045 * t;
   if (archetype === "speed" || archetype === "heroic") {
     out.push(
-      Wedge("trim", 0.015, 0.13 * t, 0.11, flankX, -0.01, -0.05, 0.2, 0, 0),
-      C("glow", 0.015, 0.022, 0.03, flankX + 0.01, -0.05, -0.06, -0.4, 0, 0, 8),
+      Wedge("trim", 0.11, 0.12 * t, 0.05, rootX + 0.03, 0.0, -0.01, 0.12, 0, -0.35),
+      C("glow", 0.012, 0.02, 0.03, rootX + 0.07, -0.03, -0.03, -0.35, 0, 0, 8),
     );
   } else if (archetype === "heavy") {
     out.push(
-      C("dark", 0.03, 0.03, 0.11 * t, flankX + 0.01, -0.02, -0.04, -0.3, 0, 0, 8),
-      C("glow", 0.02, 0.02, 0.02, flankX + 0.01, -0.065, -0.055, -0.3, 0, 0, 8),
+      B("dark", 0.055, 0.14 * t, 0.08, rootX + 0.02, -0.01, -0.01, 0, 0, -0.12),
+      C("glow", 0.016, 0.016, 0.02, rootX + 0.045, -0.06, -0.02, 0, 0, 0, 8),
     );
   } else {
-    out.push(B("metal", 0.018, 0.11 * t, 0.07, flankX, -0.02, -0.04));
+    out.push(B("metal", 0.05, 0.1 * t, 0.06, rootX + 0.015, -0.02, -0.005, 0, 0, -0.1));
   }
 
   // LAYER 4: ankle actuator (open gap under the armor — no foot clipping)
@@ -409,34 +429,24 @@ export function buildLayeredHelm(kit: ParsedKit, t: number, s: number, _detailLe
     out.push(Trap("prim", 0.19 * t, 0.22 * t, 0.2 * t, 0, 0.02, -0.01, -0.1, 0, 0, 0.2));
   }
 
-  // Layer 3: a stepped crown ridge UP and BACK — never over the visor.
-  // Big base ridge, one smaller cap ridge. No same-size stack.
+  // Layer 3: a single crown ridge seated ON the cowl top — embedded, not a
+  // floating fin. The actual antenna/V-fin crest is its own slot now.
   out.push(
-    shp(dna.accentShape, "sec", 0.15 * t, 0.055 * t, 0.13, 0, 0.055, -0.03, 0),
-    shp(dna.accentShape, "trim", 0.09 * t, 0.04 * t, 0.1, 0, 0.085, -0.06, dna.twist * 0.7),
+    shp(
+      dna.accentShape === SHAPE.CONE || dna.accentShape === SHAPE.DOME ? SHAPE.TRAP : dna.accentShape,
+      "sec",
+      0.13 * t,
+      0.05 * t,
+      0.14,
+      0,
+      0.05,
+      -0.005,
+      dna.twist * 0.5,
+    ),
   );
 
-  // Layer 3b: forehead crest + optic
-  out.push(
-    Trap("sec", 0.06 * t, 0.09 * t, 0.06, 0, 0.1, 0.07, 0.2, 0, 0, 0.05),
-    B("glow", 0.08 * t, 0.022, 0.02, 0, 0.04, 0.095, -0.05, 0, 0),
-  );
-
-  if (archetype === "heroic") {
-    out.push(
-      Wedge("trim", 0.012, 0.14, 0.04, -0.06 * t, 0.16, 0.06, 0.2, 0.3, 0.45),
-      Wedge("trim", 0.012, 0.14, 0.04, 0.06 * t, 0.16, 0.06, 0.2, -0.3, -0.45),
-    );
-  } else if (archetype === "beast") {
-    out.push(
-      N("trim", 0.004, 0.025, 0.15, -0.07 * t, 0.14, 0.04, 0.2, 0.3, 0.5),
-      N("trim", 0.004, 0.025, 0.15, 0.07 * t, 0.14, 0.04, 0.2, -0.3, -0.5),
-    );
-  } else if (archetype === "grunt") {
-    out.push(C("metal", 0.005, 0.005, 0.12, 0.07 * t, 0.12, 0, 0.1, 0, 0, 6));
-  } else {
-    out.push(Wedge("trim", 0.012, 0.09, 0.16, 0, 0.14, -0.06, -0.35, 0, 0));
-  }
+  // Layer 3b: forehead optic seated on the brow
+  out.push(B("glow", 0.08 * t, 0.02, 0.02, 0, 0.04, 0.02 + 0.1 * t, -0.05, 0, 0));
 
   return out;
 }
