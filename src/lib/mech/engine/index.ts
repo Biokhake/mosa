@@ -32,6 +32,8 @@ import { massReportShin, massReportLimb } from "./mechanics/mass";
 import { measureMetrics, classifyBand } from "./classify";
 import { critique } from "./critic";
 import { refine } from "./refine";
+import { generatePopulation } from "./population";
+import type { Population } from "./population";
 import type { Brief, KitArtifact, Proportions, SlotArtifact, SlotId, Rig } from "./types";
 
 export * from "./types";
@@ -40,6 +42,8 @@ export { measureMetrics, classifyBand, classifyBand as _classifyBand, assignId, 
 export { PHILOSOPHIES as DESIGN_PHILOSOPHIES } from "./brief";
 export { critique } from "./critic";
 export type { Critique } from "./critic";
+export { generatePopulation } from "./population";
+export type { Population, PopulationEntry } from "./population";
 
 /** How many candidates the generate-and-select loop builds per slot. */
 const REFINE_COUNT = 5;
@@ -172,6 +176,33 @@ export function designRig(brief: Brief): Rig {
   return buildRig(brief, resolveProportions(brief));
 }
 
+/**
+ * A lighter kit measurement for population generation — builds shin + thigh
+ * once and returns just the aggregate metrics + band (no per-slot artifacts,
+ * no rig echo).
+ */
+function measureKit(brief: Brief): { brief: Brief; metrics: ReturnType<typeof measureMetrics>; band: ReturnType<typeof classifyBand> } {
+  const prop = resolveProportions(brief);
+  const rig = buildRig(brief, prop);
+  const prims = [
+    ...shinArtifact(brief, prop, shinView(rig, "R")).prims,
+    ...thighArtifact(brief, prop, rig).prims,
+  ];
+  const metrics = measureMetrics(prims);
+  return { brief, metrics, band: classifyBand(metrics) };
+}
+
+let _population: Population | null = null;
+
+/**
+ * The 100-kit population. Built once (deterministic), then reused. IDs are
+ * assigned here as an OUTPUT of measurement — see `population.ts`.
+ */
+export function getPopulation(): Population {
+  if (!_population) _population = generatePopulation(measureKit);
+  return _population;
+}
+
 /** Design a whole kit from a brief (Phase 3b: `shin` + `thigh` populated). */
 export function designKit(brief: Brief): KitArtifact {
   const rig = buildRig(brief, resolveProportions(brief));
@@ -186,7 +217,17 @@ export function designKit(brief: Brief): KitArtifact {
   return { brief, slots, metrics, band: classifyBand(metrics) };
 }
 
-/** Convenience for the studio's transitional path: design from an existing ID. */
+/**
+ * Resolve a catalog ID to its brief. The ID now names a POPULATION member
+ * (its brief was chosen and measured, then handed this ID); the legacy decoder
+ * is only a fallback for IDs outside the generated set.
+ */
+export function briefForId(id: string): Brief {
+  const entry = getPopulation().byId[(id || "").trim().toUpperCase()];
+  return entry ? entry.brief : briefFromLegacyId(id);
+}
+
+/** Convenience for the studio's path: design a slot from a catalog ID. */
 export function designSlotFromLegacyId(slot: SlotId, id: string): SlotArtifact | null {
-  return designSlot(slot, briefFromLegacyId(id));
+  return designSlot(slot, briefForId(id));
 }

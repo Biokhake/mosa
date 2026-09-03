@@ -8,7 +8,7 @@
  */
 
 import { makeRng, clamp } from "./rng";
-import type { Brief } from "./types";
+import type { Band, Brief } from "./types";
 
 interface Philosophy {
   name: string;
@@ -104,11 +104,25 @@ export const PHILOSOPHIES: Philosophy[] = [
   },
 ];
 
-/** Build a brief from a philosophy + a seed, with bounded jitter. */
-export function makeBrief(seed: string): Brief {
+/**
+ * Build a brief from a philosophy + a seed, with bounded jitter.
+ *
+ * `targetBand` (used by population generation) restricts the philosophy pool to
+ * those whose silhouette lean matches the band and forces the S/R axes + a
+ * full-range decoration roll, so a band's 25 kits span the decoration axis that
+ * later ranks them into letters.
+ */
+export function makeBrief(seed: string, targetBand?: Band): Brief {
   const rng = makeRng(`brief:${seed}`);
-  const phil = PHILOSOPHIES[rng.int(PHILOSOPHIES.length)]!;
   const jitter = (base: number, amt: number) => clamp(base + rng.range(-amt, amt), 0, 1);
+
+  let pool = PHILOSOPHIES;
+  if (targetBand) {
+    const wantSil = targetBand[0] === "S" ? -1 : 1;
+    pool = PHILOSOPHIES.filter((p) => Math.sign(p.silhouette) === wantSil);
+    if (!pool.length) pool = PHILOSOPHIES;
+  }
+  const phil = pool[rng.int(pool.length)]!;
 
   const silhouetteScalar = phil.silhouette + rng.range(-0.25, 0.25);
   const edgeScalar = phil.edge + rng.range(-0.25, 0.25);
@@ -116,9 +130,9 @@ export function makeBrief(seed: string): Brief {
   return {
     seed,
     philosophy: phil.name,
-    silhouette: silhouetteScalar < 0 ? "S" : "R",
-    edge: edgeScalar < 0 ? "S" : "R",
-    decoration: jitter(phil.decoration, 0.15),
+    silhouette: targetBand ? (targetBand[0] as "S" | "R") : silhouetteScalar < 0 ? "S" : "R",
+    edge: targetBand ? (targetBand[1] as "S" | "R") : edgeScalar < 0 ? "S" : "R",
+    decoration: targetBand ? clamp(rng.range(0.05, 0.95), 0, 1) : jitter(phil.decoration, 0.15),
     sizeClass: rng.pick(["S", "M", "M", "L"] as const),
     role: rng.pick(phil.roles),
     taper: jitter(phil.taper, 0.15),
