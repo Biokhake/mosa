@@ -43,8 +43,8 @@ export function pack(r: Recipe): Spec[] {
       return [
         B("prim", 0.08, 0.22, 0.13, 0.12, 0, 0),
         B("prim", 0.08, 0.22, 0.13, -0.12, 0, 0),
-        C("glow", 0.03, 0.04, 0.09, 0.12, -0.1, -0.08, Math.PI / 2, 0, 0, s),
-        C("glow", 0.03, 0.04, 0.09, -0.12, -0.1, -0.08, Math.PI / 2, 0, 0, s),
+        C("dark", 0.03, 0.04, 0.09, 0.12, -0.1, -0.08, Math.PI / 2, 0, 0, s),
+        C("dark", 0.03, 0.04, 0.09, -0.12, -0.1, -0.08, Math.PI / 2, 0, 0, s),
       ];
     case "mast":
       return [
@@ -83,8 +83,8 @@ export function pack(r: Recipe): Spec[] {
       return [
         C("metal", 0.07, 0.09, 0.22, 0.08, 0, 0, Math.PI / 2, 0, 0, s),
         C("metal", 0.07, 0.09, 0.22, -0.08, 0, 0, Math.PI / 2, 0, 0, s),
-        C("glow", 0.05, 0.06, 0.07, 0.08, 0, -0.14, Math.PI / 2, 0, 0, s),
-        C("glow", 0.05, 0.06, 0.07, -0.08, 0, -0.14, Math.PI / 2, 0, 0, s),
+        C("dark", 0.05, 0.06, 0.07, 0.08, 0, -0.14, Math.PI / 2, 0, 0, s),
+        C("dark", 0.05, 0.06, 0.07, -0.08, 0, -0.14, Math.PI / 2, 0, 0, s),
       ];
     case "scythe":
       return [
@@ -228,7 +228,7 @@ export function binder(r: Recipe): Spec[] {
       B("metal", 0.04, 0.06, 0.08, 0, 0.02, -0.05),
       { t: "capsule", m: "prim", s: [0.06, len * 0.8, 0], p: [0, 0.02, -0.12], r: [0.5, 0, 0] },
       C("trim", 0.062, 0.062, 0.02, 0, 0.12, -0.19, 0.5, 0, 0, s),
-      ...lume("glow", 0.014, 0.03, 0, -0.06, -0.05, Math.PI / 2, 0, 0, 8),
+      ...lume("metal", 0.014, 0.03, 0, -0.06, -0.05, Math.PI / 2, 0, 0, 8),
     );
   } else {
     // sensor mast binder — a vertical mast off the mount with a housed emitter
@@ -286,7 +286,7 @@ export function weaponSpecs(v: string, beamZ = 1): Spec[] {
       B("dark", 0.05, 0.12, 0.055, 0, -0.02, 0),
       C("metal", 0.055, 0.065, 0.3, 0, 0.1, 0.18, rx, 0, 0),
       B("prim", 0.11, 0.1, 0.12, 0, 0.08, -0.04),
-      C("glow", 0.035, 0.045, 0.055, 0, 0.1, 0.36, rx, 0, 0),
+      C("dark", 0.032, 0.04, 0.05, 0, 0.1, 0.35, rx, 0, 0),
     ];
   }
   if (v === "shotgun") {
@@ -684,14 +684,14 @@ function extraModular(n: number): Spec[] {
     case 1:
       return [
         C("metal", 0.07, 0.09, 0.2, 0, 0, 0, Math.PI / 2, 0, 0),
-        C("glow", 0.05, 0.06, 0.07, 0, 0, -0.14, Math.PI / 2, 0, 0),
+        C("dark", 0.05, 0.06, 0.07, 0, 0, -0.14, Math.PI / 2, 0, 0),
       ];
     case 2:
       return [
         C("metal", 0.05, 0.07, 0.18, 0.08, 0, 0, Math.PI / 2, 0, 0),
         C("metal", 0.05, 0.07, 0.18, -0.08, 0, 0, Math.PI / 2, 0, 0),
-        C("glow", 0.04, 0.05, 0.06, 0.08, 0, -0.12, Math.PI / 2, 0, 0),
-        C("glow", 0.04, 0.05, 0.06, -0.08, 0, -0.12, Math.PI / 2, 0, 0),
+        C("dark", 0.04, 0.05, 0.06, 0.08, 0, -0.12, Math.PI / 2, 0, 0),
+        C("dark", 0.04, 0.05, 0.06, -0.08, 0, -0.12, Math.PI / 2, 0, 0),
       ];
     case 3:
       return [
@@ -713,7 +713,7 @@ function extraModular(n: number): Spec[] {
       return [
         B("prim", 0.06, 0.16, 0.32, 0, 0.02, -0.04, 0.3, 0.2, 0),
         B("sec", 0.04, 0.08, 0.18, 0, 0.04, 0),
-        C("glow", 0.025, 0.03, 0.08, 0, -0.04, -0.16, Math.PI / 2, 0, 0),
+        C("dark", 0.025, 0.03, 0.08, 0, -0.04, -0.16, Math.PI / 2, 0, 0),
       ];
     case 7:
       return [
@@ -735,8 +735,8 @@ function extraModular(n: number): Spec[] {
       return [
         C("metal", 0.03, 0.04, 0.1, 0.06, 0.04, -0.04, Math.PI / 2, 0, 0),
         C("metal", 0.03, 0.04, 0.1, -0.06, 0.04, -0.04, Math.PI / 2, 0, 0),
-        C("glow", 0.02, 0.025, 0.05, 0.06, 0.04, -0.1, Math.PI / 2, 0, 0),
-        C("glow", 0.02, 0.025, 0.05, -0.06, 0.04, -0.1, Math.PI / 2, 0, 0),
+        C("dark", 0.02, 0.025, 0.05, 0.06, 0.04, -0.1, Math.PI / 2, 0, 0),
+        C("dark", 0.02, 0.025, 0.05, -0.06, 0.04, -0.1, Math.PI / 2, 0, 0),
       ];
     case 11:
       return [
@@ -761,7 +761,7 @@ function extraModular(n: number): Spec[] {
     case 15:
       return [
         C("trim", 0.12, 0.12, 0.04, 0, 0, 0, Math.PI / 2, 0, 0),
-        C("glow", 0.06, 0.06, 0.03, 0, 0, -0.03, Math.PI / 2, 0, 0),
+        C("dark", 0.06, 0.06, 0.03, 0, 0, -0.03, Math.PI / 2, 0, 0),
       ];
     case 16:
       return [
@@ -865,7 +865,7 @@ function extraWeapon(n: number): Spec[] {
         B("prim", 0.16, 0.08, 0.1, 0, 0, 0),
         B("prim", 0.05, 0.05, 0.14, 0.06, 0.06, 0.04),
         B("prim", 0.05, 0.05, 0.14, -0.06, 0.06, 0.04),
-        C("glow", 0.02, 0.025, 0.05, 0.06, 0.06, -0.06, Math.PI / 2, 0, 0),
+        C("dark", 0.02, 0.025, 0.05, 0.06, 0.06, -0.06, Math.PI / 2, 0, 0),
       ];
     case 13:
       return [
@@ -962,7 +962,7 @@ function extraAcc(n: number): Spec[] {
     case 8:
       return [
         B("prim", 0.08, 0.06, 0.16, 0, 0, 0),
-        C("glow", 0.03, 0.04, 0.06, 0, 0, -0.1, Math.PI / 2, 0, 0),
+        C("dark", 0.03, 0.04, 0.06, 0, 0, -0.1, Math.PI / 2, 0, 0),
       ];
     case 9:
       return [

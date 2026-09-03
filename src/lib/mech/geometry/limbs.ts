@@ -59,7 +59,7 @@ export function shoulder(r: Recipe, _isLeft = false): Spec[] {
       B("sec", 0.22 * t, 0.08, 0.2, 0, 0.09, 0),
       // Shoulder thruster nozzle / reaction control port
       C("dark", 0.026, 0.034, 0.05, 0.12 * t, 0.08, 0, 0, 0, Math.PI / 2, 10),
-      C("glow", 0.015, 0.015, 0.01, 0.14 * t, 0.08, 0, 0, 0, Math.PI / 2, 8),
+      C("dark", 0.015, 0.015, 0.01, 0.14 * t, 0.08, 0, 0, 0, Math.PI / 2, 8),
       B("trim", 0.25 * t, 0.016, 0.15, 0, 0.15, 0),
     );
   } else {
@@ -343,7 +343,7 @@ export function shin(r: Recipe, _isLeft = false): Spec[] {
   // Rear Calf Thruster Nozzle
   out.push(
     C("dark", 0.035 * t, 0.045 * t, 0.08, 0, -shinLen * 0.15, -0.07 * t, 0.35, 0, 0, 10),
-    C("glow", 0.02 * t, 0.02 * t, 0.02, 0, -shinLen * 0.15, -0.075 * t, 0.35, 0, 0, 8),
+    C("dark", 0.02 * t, 0.02 * t, 0.02, 0, -shinLen * 0.15, -0.075 * t, 0.35, 0, 0, 8),
   );
 
   // Shinguard Plating (A~L vs M~Z)

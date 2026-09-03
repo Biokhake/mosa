@@ -395,7 +395,7 @@ export function ear(r: Recipe, _isLeft: boolean): Spec[] {
       ...makeRotaryServo("dark", "metal", 0, 0, 0, earRad, earThick, 0, 0, Math.PI / 2, 8),
       B("metal", 0.01, earRad * 1.6, earRad * 1.4, earThick * 0.6, 0, 0),
       // status LED, framed
-      ...lume("glow", 0.006, 0.012, earThick * 0.7, 0.02, 0, 0, 0, Math.PI / 2, 6),
+      ...lume("metal", 0.006, 0.012, earThick * 0.7, 0.02, 0, 0, 0, Math.PI / 2, 6),
     );
   }
 

@@ -343,10 +343,12 @@ function details(ctx: Ctx, g: Greave) {
         bevel: 0,
       });
     } else {
+      // a knee striker cap — a knee has no reason to glow, so this is armour,
+      // not a light. `light` role is reserved for head optics + weapon beams.
       out.push({
         kind: "hemi",
-        role: "light",
-        size: [L * 0.45, 0, 0],
+        role: "armorB",
+        size: [L * 0.5, 0, 0],
         pos: [0, gy - L * 0.2, g.frontZ - rig.girth * 0.03],
         rot: [-0.2, 0, 0],
         tier: "detail",

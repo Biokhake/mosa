@@ -328,12 +328,13 @@ export function mass(
 }
 
 /**
- * A luminescent element that is never allowed to exist bare: a recessed dark
- * bezel cup that houses the glow, so verniers / sensor lights / thruster cores
- * always read as framed hardware, not a floating light in mid-air.
+ * A framed detail element in a recessed bezel cup. `mat` should be a real
+ * hardware material (`metal`, `dark`, `acc`) — luminescence (`glow`/`visor`) is
+ * only legitimate for eyes / visors / weapon optics / a deliberately-placed
+ * core, never for verniers or sensor dots scattered on armour.
  */
 export function lume(
-  glowMat: MatKey,
+  mat: MatKey,
   rad: number,
   depth: number,
   x = 0,
@@ -345,17 +346,15 @@ export function lume(
   seg = 10,
 ): Spec[] {
   return [
-    // recessed bezel cup — the frame the light sits in
     C("dark", rad * 1.9, rad * 1.9, depth, x, y, z, rx, ry, rz, seg),
     C("metal", rad * 1.45, rad * 1.45, depth * 1.02, x, y, z, rx, ry, rz, seg),
-    // the lens, sunk INSIDE the cup (shorter than the bezel)
-    C(glowMat, rad, rad * 0.88, depth * 0.7, x, y, z, rx, ry, rz, seg),
+    C(mat, rad, rad * 0.88, depth * 0.7, x, y, z, rx, ry, rz, seg),
   ];
 }
 
 /**
- * A thruster: a bell nozzle with the exhaust glow contained inside its mouth.
- * `(x,y,z)` is the bell centre; the bell fires toward −local-Y before rotation.
+ * A thruster bell nozzle — metal bell + a dark inner cavity. NO exhaust flame:
+ * a robot standing in a hangar is not firing its verniers.
  */
 export function makeThrusterBell(
   mBell: MatKey,
@@ -372,8 +371,8 @@ export function makeThrusterBell(
   return [
     C(mBell, rad * 0.7, rad, len, x, y, z, rx, ry, rz, seg),
     C("joint", rad * 1.12, rad * 1.12, len * 0.22, x, y + len * 0.32, z, rx, ry, rz, seg),
-    // exhaust glow, sunk into the bell mouth
-    C("glow", rad * 0.72, rad * 0.5, len * 0.5, x, y - len * 0.18, z, rx, ry, rz, seg),
+    // dark combustion cavity, sunk into the bell mouth
+    C("dark", rad * 0.7, rad * 0.5, len * 0.55, x, y - len * 0.16, z, rx, ry, rz, seg),
   ];
 }
 

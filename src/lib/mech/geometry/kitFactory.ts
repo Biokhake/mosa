@@ -169,8 +169,8 @@ function seatAccent(
 }
 
 /**
- * A nozzle / vent sunk into a flush recessed housing so nothing pierces a
- * panel edge. `(x,y,z)` is the housing centre, already sitting ON the shell.
+ * A nozzle / vent sunk into a flush recessed housing. Metal rim + dark cavity,
+ * no glow: a vernier is not lit while the frame stands idle.
  */
 function socketPort(
   mat: MatKey,
@@ -182,15 +182,13 @@ function socketPort(
   rx = 0,
   ry = 0,
   rz = 0,
-  glow = true,
 ): Spec[] {
   const seg = 10;
-  const o: Spec[] = [
+  return [
     C("dark", rad * 1.55, rad * 1.55, depth * 0.6, x, y, z, rx, ry, rz, seg),
     C(mat, rad, rad * 0.82, depth, x, y, z, rx, ry, rz, seg),
+    C("dark", rad * 0.6, rad * 0.42, depth * 0.7, x, y, z, rx, ry, rz, seg),
   ];
-  if (glow) o.push(C("glow", rad * 0.5, rad * 0.5, depth * 0.62, x, y, z, rx, ry, rz, seg));
-  return o;
 }
 
 /**
@@ -286,14 +284,14 @@ export function buildLayeredShoulder(kit: ParsedKit, t: number, s: number, detai
   out.push(...layeredAccents(dna, mainX, mainY, 0, wide * t, tall * t, mainD));
 
   // LAYER 4: HARDWARE — one socketed vernier for the faster frames, sunk into
-  // the +X face so it never pierces a panel edge. Telemetry is a flush line.
+  // the +X face so it never pierces a panel edge. + a flush panel-line rib.
   if (detailLevel >= 12 || archetype === "speed" || archetype === "heroic") {
     out.push(
       ...socketPort("metal", mainX + halfW - 0.03, mainY, mainD * 0.12, 0.02, 0.045, 0, 0, -Math.PI / 2),
     );
   }
   if (boxy) {
-    out.push(B("glow", 0.05, 0.01, 0.012, mainX, mainY + halfH * 0.5, mainD * 0.5 - 0.004));
+    out.push(B("dark", 0.05, 0.008, 0.01, mainX, mainY + halfH * 0.5, mainD * 0.5 - 0.004));
   }
 
   return out;

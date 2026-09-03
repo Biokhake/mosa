@@ -40,7 +40,15 @@ export type SlotId =
   | "foot"
   | "backpack";
 
-/** Semantic material role. An adapter maps each to a host material. */
+/**
+ * Semantic material role. An adapter maps each to a host material.
+ *
+ * `light` (luminescence) is DELIBERATELY constrained: it may only be emitted
+ * for head optics (eyes / visor), weapon beams + weapon-mounted scopes, or a
+ * clearly-housed reactor / core gem. Never for verniers, thruster exhausts,
+ * telemetry strips, or sensor dots scattered on armour — a frame standing in a
+ * hangar is not firing anything.
+ */
 export type MatRole =
   | "armorA" // primary armour — the big masses, Part 1
   | "armorB" // secondary armour — seated sub-plates, Part 2
@@ -49,7 +57,7 @@ export type MatRole =
   | "frame" // structural frame, joints
   | "mechanism" // exposed dark hardware (pistons, chassis)
   | "metal" // bright polished metal
-  | "light"; // luminescent
+  | "light"; // luminescent — head optics / weapon beams / housed core ONLY
 
 /** Primitive vocabulary. Kept close to what any renderer can build. */
 export type PrimKind =
