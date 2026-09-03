@@ -115,12 +115,16 @@ function shp(
 
 /**
  * =========================================================================
- * Layered accent stack (Master Prompt 8.0 —묘수 1 & 3).
+ * Layered accent stack (Master Prompt 8.0 —묘수 1 & 3, revised).
  *
- * Emits `dna.layerCount - 1` shrinking panels stepped out along +Z, each one
- * the DNA *accent* primitive (guaranteed a different family than the base),
- * fanned by `dna.twist` and spread by `dna.splay`, with a dark panel-line
- * shim between plates so the layering reads as stacked hardware.
+ * A pyramidal Part-2 decoration sitting ON the Part-1 shell — never a pile of
+ * same-size plates and never 3+ tiers stacked at one spot:
+ *   - the plate underneath is always clearly the largest, each successive
+ *     plate is markedly smaller (≈0.6×), so it reads as a stepped crest;
+ *   - only 2 tiers by default (3 only for the busiest kits), hugging the
+ *     shell face with a small proud step — cohesive, not floating;
+ *   - the accent primitive is the DNA *accent* family (≠ base = cross-combined)
+ *     and only the top plate takes any twist.
  * =========================================================================
  */
 function layeredAccents(
@@ -131,24 +135,21 @@ function layeredAccents(
   w: number,
   h: number,
   baseDepth: number,
-  mats: MatKey[] = ["sec", "trim", "acc"],
+  mats: MatKey[] = ["sec", "trim"],
 ): Spec[] {
   const out: Spec[] = [];
-  const n = Math.max(2, dna.layerCount);
-  const gap = Math.max(0.02, baseDepth * (0.22 + dna.step * 0.2));
-  for (let i = 1; i < n; i++) {
-    const f = i / n;
-    const lw = w * (1 - f * 0.42);
-    const lh = h * (1 - f * 0.38);
-    const ld = Math.max(0.016, baseDepth * 0.45 * (1 - f * 0.3));
-    const lz = cz + baseDepth * 0.5 + (i - 1) * gap;
-    const ly = cy + (f - 0.35) * h * 0.14;
-    const lx = cx + dna.splay * w * 0.32 * (i % 2 ? 1 : -1) * f;
-    const yaw = dna.twist * i;
-    out.push(shp(dna.accentShape, mats[i % mats.length]!, lw, lh, ld, lx, ly, lz, yaw));
-    if (i < n - 1) {
-      out.push(B("dark", lw * 0.86, Math.max(0.006, lh * 0.045), ld * 0.7, lx, ly - lh * 0.5, lz));
-    }
+  const tiers = dna.layerCount >= 5 ? 3 : 2;
+  const front = cz + baseDepth * 0.5;
+  const shrink = [0.68, 0.42, 0.24];
+  let lz = front;
+  for (let i = 0; i < tiers; i++) {
+    const lw = w * shrink[i]!;
+    const lh = h * shrink[i]!;
+    const ld = Math.max(0.016, baseDepth * (0.34 - i * 0.08));
+    lz += i === 0 ? baseDepth * 0.08 : Math.max(0.012, ld * 0.7);
+    const ly = cy + i * h * 0.045;
+    const yaw = i === tiers - 1 ? dna.twist * 0.8 : 0;
+    out.push(shp(dna.accentShape, mats[Math.min(i, mats.length - 1)]!, lw, lh, ld, cx, ly, lz, yaw));
   }
   return out;
 }
@@ -238,18 +239,15 @@ export function buildLayeredShin(kit: ParsedKit, t: number, _s: number, _detailL
   // front tibial deflector strip
   out.push(B("trim", 0.026 * t, 0.14 * t, 0.02, 0, -0.01, 0.02 + mainD * 0.55, -0.12, 0, 0));
 
-  // LAYER 3: ACCENT — knee striker + layered calf panels (kept above y = -0.05)
+  // LAYER 3: ACCENT — knee striker (Part 2) + one pyramidal mid-calf crest.
+  // Everything stays above y = -0.05 so nothing rides the ankle.
   const kneeShape = archetype === "beast" ? SHAPE.CONE : dna.accentShape;
-  out.push(shp(kneeShape, "sec", 0.11 * t, 0.12 * t, mainD * 0.6, 0, 0.135, 0.06, 0.4));
-  for (let i = 1; i < Math.max(2, dna.layerCount); i++) {
-    const f = i / dna.layerCount;
-    const ly = 0.06 - f * 0.12; // 0.06 .. -0.06 max
-    const lz = 0.02 + mainD * (0.4 + i * dna.step * 0.35);
-    const lw = topW * t * (0.8 - f * 0.3);
-    out.push(
-      shp(dna.accentShape, i % 2 ? "trim" : "sec", lw, 0.1 * t * (1 - f * 0.3), Math.max(0.012, mainD * 0.4 * (1 - f * 0.25)), 0, ly, lz, dna.twist * i),
-    );
-  }
+  out.push(shp(kneeShape, "sec", 0.11 * t, 0.12 * t, mainD * 0.6, 0, 0.135, 0.055, 0.4));
+  // big under-plate then a smaller proud plate — a stepped crest, not a stack
+  out.push(
+    shp(dna.accentShape, "sec", topW * t * 0.66, 0.13 * t, mainD * 0.34, 0, 0.03, 0.02 + mainD * 0.55, 0),
+    shp(dna.accentShape, "trim", topW * t * 0.4, 0.08 * t, mainD * 0.24, 0, 0.05, 0.02 + mainD * 0.8, dna.twist * 0.8),
+  );
 
   // LAYER 3C: outer calf booster / stabilizer fin
   const flankX = 0.09 * t;
@@ -411,15 +409,12 @@ export function buildLayeredHelm(kit: ParsedKit, t: number, s: number, _detailLe
     out.push(Trap("prim", 0.19 * t, 0.22 * t, 0.2 * t, 0, 0.02, -0.01, -0.1, 0, 0, 0.2));
   }
 
-  // Layer 3: layered crown plates stacked UP and BACK, never over the visor
-  const n = Math.max(2, dna.layerCount);
-  for (let i = 1; i < n; i++) {
-    const f = i / n;
-    const lw = 0.16 * t * (1 - f * 0.4);
-    const ly = 0.06 + f * 0.06;
-    const lz = -0.02 - i * 0.03;
-    out.push(shp(dna.accentShape, i % 2 ? "sec" : "trim", lw, 0.05 * t, 0.12 * (1 - f * 0.3), 0, ly, lz, dna.twist * i));
-  }
+  // Layer 3: a stepped crown ridge UP and BACK — never over the visor.
+  // Big base ridge, one smaller cap ridge. No same-size stack.
+  out.push(
+    shp(dna.accentShape, "sec", 0.15 * t, 0.055 * t, 0.13, 0, 0.055, -0.03, 0),
+    shp(dna.accentShape, "trim", 0.09 * t, 0.04 * t, 0.1, 0, 0.085, -0.06, dna.twist * 0.7),
+  );
 
   // Layer 3b: forehead crest + optic
   out.push(

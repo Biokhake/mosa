@@ -6,11 +6,19 @@ import {
   N,
   Torus,
   Capsule,
+  Wedge,
+  Trap,
   makeRotaryServo,
   makeStandoffArmor,
   makeCoolingFins,
   mass,
 } from "./primitives";
+import { generateKitDNA } from "./dna";
+
+/** Small helper: a stable 0..(m-1) style index for a face feature. */
+function faceStyle(r: Recipe, shift: number, m: number): number {
+  return ((generateKitDNA(r.code.id).hash >>> shift) % m + m) % m;
+}
 
 /**
  * Helm (Main Cranium & Structural Skull Chassis).
@@ -105,55 +113,101 @@ export function helm(r: Recipe): Spec[] {
 export function visor(r: Recipe): Spec[] {
   const t = r.thick;
   const isCurved = r.quad === "RS" || r.quad === "RR";
+  const style = faceStyle(r, 5, 5); // 0..4 — the visor "face" of this unit
   const out: Spec[] = [];
+  const vw = 0.2 * t;
 
   if (isCurved) {
-    // --- FULL VISOR (HUMANOID ROBOT STYLE) ---
-    // Smooth, expansive curved display screen covering the face
-    const visorWidth = 0.23 * t;
-    if (r.quad === "RR") {
-      // RR: Ultra-smooth pebble full visor
+    // --- RS & RR: full curved display screen, 5 distinct faces ---
+    const seg = r.segs;
+    if (style === 0) {
+      // wide panoramic screen
       out.push(
-        // The main glossy curved full visor screen
-        Capsule("visor", 0.11 * t, 0.065, 0, -0.005, 0.045, 0.28, 0, 0, r.segs),
-        // Visor Bezel Ring / Gasket
-        Torus("dark", 0.115 * t, 0.009, 0, -0.005, 0.04, 0.28, 0, 0),
-        // Internal glowing horizontal HUD horizon / status line
-        B("glow", visorWidth * 0.75, 0.008, 0.02, 0, 0.005, 0.085, 0.28, 0, 0),
+        Capsule("visor", 0.11 * t, 0.07, 0, -0.004, 0.045, 0.3, 0, 0, seg),
+        Torus("dark", 0.115 * t, 0.008, 0, -0.004, 0.04, 0.3, 0, 0),
+        B("glow", vw * 0.78, 0.008, 0.02, 0, 0.006, 0.085, 0.3, 0, 0),
+      );
+    } else if (style === 1) {
+      // wraparound screen with lateral wing strakes
+      out.push(
+        Capsule("visor", 0.1 * t, 0.085, 0, 0, 0.045, 0.35, 0, 0, seg),
+        B("dark", 0.014, 0.15, 0.055, -vw * 0.56, -0.01, 0.03, 0.25, 0.22, 0),
+        B("dark", 0.014, 0.15, 0.055, vw * 0.56, -0.01, 0.03, 0.25, -0.22, 0),
+        C("glow", 0.011, 0.011, 0.02, -0.045 * t, 0.012, 0.08, 0.32, 0, 0, 8),
+        C("glow", 0.011, 0.011, 0.02, 0.045 * t, 0.012, 0.08, 0.32, 0, 0, 8),
+      );
+    } else if (style === 2) {
+      // slim horizon band on a matte faceplate
+      out.push(
+        Capsule("dark", 0.11 * t, 0.05, 0, 0, 0.05, 0.3, 0, 0, seg),
+        B("visor", vw * 0.82, 0.02, 0.03, 0, 0.02, 0.075, 0.28, 0, 0),
+        B("glow", vw * 0.5, 0.006, 0.02, 0, 0.02, 0.09, 0.28, 0, 0),
+      );
+    } else if (style === 3) {
+      // domed bubble canopy
+      out.push(
+        { t: "hemi", m: "visor", s: [0.1 * t, 0, 0], p: [0, 0.02, 0.05], r: [0.2, 0, 0] },
+        Torus("metal", 0.1 * t, 0.008, 0, 0.01, 0.03, 0.3, 0, 0),
+        C("glow", 0.02, 0.02, 0.02, 0, 0.02, 0.11, Math.PI / 2, 0, 0, 12),
       );
     } else {
-      // RS: Aerodynamic curved full visor with sharp perimeter chamfers
+      // split hemispheres (twin eye pods behind one gasket)
       out.push(
-        // Curved panoramic visor screen
-        Capsule("visor", 0.105 * t, 0.08, 0, 0, 0.045, 0.35, 0, 0, r.segs),
-        // Lateral aerodynamic visor strakes (framing the visor)
-        B("dark", 0.016, 0.14, 0.05, -visorWidth * 0.52, -0.01, 0.04, 0.25, 0.2, 0),
-        B("dark", 0.016, 0.14, 0.05, visorWidth * 0.52, -0.01, 0.04, 0.25, -0.2, 0),
-        // Internal dual glow points (eyes behind the tint)
-        C("glow", 0.012, 0.012, 0.02, -0.045 * t, 0.015, 0.08, 0.35, 0, 0, 8),
-        C("glow", 0.012, 0.012, 0.02, 0.045 * t, 0.015, 0.08, 0.35, 0, 0, 8),
+        Capsule("dark", 0.11 * t, 0.055, 0, 0, 0.045, 0.28, 0, 0, seg),
+        C("visor", 0.035 * t, 0.035 * t, 0.03, -0.05 * t, 0.02, 0.075, Math.PI / 2, 0, 0, seg),
+        C("visor", 0.035 * t, 0.035 * t, 0.03, 0.05 * t, 0.02, 0.075, Math.PI / 2, 0, 0, seg),
+        C("glow", 0.016, 0.016, 0.022, -0.05 * t, 0.02, 0.088, Math.PI / 2, 0, 0, 10),
+        C("glow", 0.016, 0.016, 0.022, 0.05 * t, 0.02, 0.088, Math.PI / 2, 0, 0, 10),
       );
     }
   } else {
-    // --- SS & SR: TACTICAL ARMORED VISOR ---
+    // --- SS & SR: tactical armored visor, 5 distinct faces ---
     const sides = r.quad === "SS" ? 4 : 8;
-    out.push(
-      // Recessed armored visor band
-      C("visor", 0.038 * t, 0.042 * t, 0.19 * t, 0, 0.01, 0.04, 0, 0, Math.PI / 2, sides),
-      // Armored Sunshade / Brow Hood
-      B("sec", 0.22 * t, 0.025, 0.07, 0, 0.042, 0.055, 0.22, 0, 0),
-      // Central Optical Sensor Divider
-      B("dark", 0.022 * t, 0.048, 0.05, 0, 0.01, 0.055),
-      // Tactical Aiming Reticle / Laser Emitter Notch
-      C("glow", 0.009, 0.009, 0.02, 0, -0.012, 0.065, Math.PI / 2, 0, 0, 8),
-    );
+    if (style === 0) {
+      // single recessed band + emitter notch
+      out.push(
+        C("visor", 0.038 * t, 0.042 * t, 0.18 * t, 0, 0.01, 0.04, 0, 0, Math.PI / 2, sides),
+        B("dark", 0.02 * t, 0.05, 0.05, 0, 0.01, 0.055),
+        C("glow", 0.009, 0.009, 0.02, 0, -0.01, 0.065, Math.PI / 2, 0, 0, 8),
+      );
+    } else if (style === 1) {
+      // twin horizontal slits split by a bridge
+      out.push(
+        B("dark", vw, 0.06, 0.05, 0, 0.008, 0.045, 0.12, 0, 0),
+        B("visor", vw * 0.42, 0.016, 0.03, -vw * 0.26, 0.016, 0.065, 0.12, 0, 0),
+        B("visor", vw * 0.42, 0.016, 0.03, vw * 0.26, 0.016, 0.065, 0.12, 0, 0),
+        B("glow", vw * 0.34, 0.006, 0.02, -vw * 0.26, 0.016, 0.078, 0.12, 0, 0),
+        B("glow", vw * 0.34, 0.006, 0.02, vw * 0.26, 0.016, 0.078, 0.12, 0, 0),
+      );
+    } else if (style === 2) {
+      // aggressive V-notch visor
+      out.push(
+        B("dark", vw * 0.95, 0.07, 0.05, 0, 0.005, 0.04, 0.1, 0, 0),
+        B("visor", vw * 0.5, 0.02, 0.03, -vw * 0.22, 0.012, 0.065, 0.1, 0, 0.32),
+        B("visor", vw * 0.5, 0.02, 0.03, vw * 0.22, 0.012, 0.065, 0.1, 0, -0.32),
+        C("glow", 0.01, 0.01, 0.02, 0, -0.006, 0.07, Math.PI / 2, 0, 0, 6),
+      );
+    } else if (style === 3) {
+      // wide mono screen with a chamfered frame
+      out.push(
+        Trap("dark", vw * 0.8, vw, 0.07, 0, 0.006, 0.038, 0.12, 0, 0, 0.05),
+        B("visor", vw * 0.82, 0.03, 0.03, 0, 0.01, 0.062, 0.12, 0, 0),
+        B("glow", vw * 0.6, 0.008, 0.02, 0, 0.01, 0.076, 0.12, 0, 0),
+      );
+    } else {
+      // stepped brow visor with a heavy hood
+      out.push(
+        B("sec", vw * 1.06, 0.028, 0.08, 0, 0.05, 0.05, 0.28, 0, 0),
+        C("visor", 0.036 * t, 0.04 * t, 0.17 * t, 0, 0.005, 0.045, 0, 0, Math.PI / 2, sides),
+        B("dark", 0.02 * t, 0.045, 0.05, 0, 0.005, 0.06),
+        C("glow", 0.009, 0.009, 0.02, 0, -0.012, 0.068, Math.PI / 2, 0, 0, 8),
+      );
+    }
   }
 
-  // M~Z Layered Visor Armor:
-  if (r.ornate) {
-    out.push(
-      B("trim", 0.16 * t, 0.014, 0.04, 0, 0.052, 0.065),
-    );
+  // M~Z adds one slim layered brow rail (only when the style has no hood).
+  if (r.ornate && style !== 4) {
+    out.push(B("trim", 0.15 * t, 0.012, 0.035, 0, 0.05, 0.062));
   }
 
   return out;
@@ -165,24 +219,28 @@ export function visor(r: Recipe): Spec[] {
 export function brow(r: Recipe): Spec[] {
   const t = r.thick;
   const isCurved = r.quad === "RS" || r.quad === "RR";
+  // The visor already carries the hood/bezel; the brow is only a slim
+  // integrated eyebrow ridge so the face doesn't double up.
+  const hooded = faceStyle(r, 5, 5) === 4;
   const out: Spec[] = [];
 
+  if (hooded) {
+    // visor style already has a heavy hood — just a centre camera nub
+    out.push(C("metal", 0.009, 0.009, 0.03, 0, 0.03, 0.066, 0.32, 0, 0, 8));
+    return out;
+  }
+
   if (isCurved) {
-    // Seamless aerodynamic brow cowl
     out.push(
-      Capsule("prim", 0.11 * t, 0.05, 0, 0.015, 0.03, 0.35, 0, 0, r.segs),
-      // Integrated forward LiDAR / stereoscopic camera housing
-      C("dark", 0.016, 0.016, 0.04, 0, 0.025, 0.065, 0.35, 0, 0, 10),
-      C("metal", 0.009, 0.009, 0.045, 0, 0.025, 0.066, 0.35, 0, 0, 8),
+      // thin seamless brow ridge
+      Capsule("prim", 0.095 * t, 0.02, 0, 0.02, 0.055, 0.4, 0, 0, r.segs),
+      C("dark", 0.014, 0.014, 0.03, 0, 0.03, 0.068, 0.35, 0, 0, 10),
     );
   } else {
-    // Heavy tactical brow plate with sensor slit
     out.push(
-      B("prim", 0.24 * t, 0.04, 0.08, 0, 0.01, 0.04, 0.28, 0, 0),
-      B("sec", 0.16 * t, 0.018, 0.09, 0, 0.025, 0.045, 0.28, 0, 0),
-      // Hex mounting fasteners on brow
-      C("metal", 0.007, 0.007, 0.02, -0.09 * t, 0.02, 0.07, 0.28, 0, 0, 6),
-      C("metal", 0.007, 0.007, 0.02, 0.09 * t, 0.02, 0.07, 0.28, 0, 0, 6),
+      // slim angled eyebrow bar (Part 1) with a Part 2 core line
+      B("prim", 0.2 * t, 0.022, 0.05, 0, 0.032, 0.05, 0.3, 0, 0),
+      B("sec", 0.12 * t, 0.012, 0.055, 0, 0.04, 0.055, 0.3, 0, 0),
     );
   }
 
@@ -194,25 +252,44 @@ export function brow(r: Recipe): Spec[] {
  */
 export function eye(r: Recipe, isLeft: boolean): Spec[] {
   const isCurved = r.quad === "RS" || r.quad === "RR";
+  const style = faceStyle(r, 9, 5); // 0..4 — the eye "identity" of this unit
+  const sign = isLeft ? -1 : 1;
   const out: Spec[] = [];
+  const pitch = isCurved ? 0.3 : 0.25;
 
-  if (isCurved) {
-    // RS/RR: Integrated micro-optics recessed inside the full visor
+  if (style === 0) {
+    // round camera lens with a metallic focus bezel
     out.push(
-      C("metal", 0.014, 0.014, 0.03, 0, 0, 0.01, 0.3, 0, 0, 10),
-      C("glow", 0.009, 0.009, 0.035, 0, 0, 0.015, 0.3, 0, 0, 8),
+      C("dark", 0.021, 0.019, 0.03, 0, 0, 0.012, pitch, 0, 0, isCurved ? 12 : 8),
+      C("metal", 0.023, 0.023, 0.01, 0, 0, 0.024, pitch, 0, 0, 10),
+      C("glow", 0.014, 0.014, 0.016, 0, 0, 0.03, pitch, 0, 0, 12),
+    );
+  } else if (style === 1) {
+    // angular rectangular optic
+    out.push(
+      B("dark", 0.05, 0.03, 0.028, 0, 0, 0.012, pitch, 0, 0),
+      B("glow", 0.036, 0.016, 0.016, 0, 0, 0.028, pitch, 0, 0),
+    );
+  } else if (style === 2) {
+    // narrow vertical combat slit
+    out.push(
+      B("dark", 0.022, 0.05, 0.026, 0, 0, 0.012, pitch, 0, sign * 0.12),
+      B("glow", 0.01, 0.04, 0.014, 0, 0, 0.028, pitch, 0, sign * 0.12),
+    );
+  } else if (style === 3) {
+    // twin stacked micro-lenses
+    out.push(
+      C("dark", 0.017, 0.016, 0.026, 0, 0.012, 0.012, pitch, 0, 0, 8),
+      C("dark", 0.013, 0.012, 0.024, 0, -0.014, 0.012, pitch, 0, 0, 8),
+      C("glow", 0.011, 0.011, 0.016, 0, 0.012, 0.028, pitch, 0, 0, 10),
+      C("glow", 0.008, 0.008, 0.014, 0, -0.014, 0.026, pitch, 0, 0, 10),
     );
   } else {
-    // SS/SR: Heavy tactical optical canister with metallic lens bezel
+    // hex compound sensor with a telemetry node
     out.push(
-      // Outer lens barrel housing
-      C("dark", 0.022, 0.02, 0.04, 0, 0, 0.01, 0.25, 0, 0, 8),
-      // Metallic focus ring
-      C("metal", 0.024, 0.024, 0.012, 0, 0, 0.022, 0.25, 0, 0, 10),
-      // Front optical aperture glass
-      C("glow", 0.015, 0.015, 0.015, 0, 0, 0.026, 0.25, 0, 0, 12),
-      // Secondary telemetry sensor node
-      C("acc", 0.007, 0.007, 0.02, isLeft ? -0.025 : 0.025, -0.015, 0.015, 0.25, 0, 0, 6),
+      C("dark", 0.024, 0.024, 0.028, 0, 0, 0.012, pitch, 0, 0, 6),
+      C("glow", 0.015, 0.015, 0.016, 0, 0, 0.028, pitch, 0, 0, 6),
+      C("acc", 0.006, 0.006, 0.018, sign * 0.026, -0.016, 0.016, pitch, 0, 0, 6),
     );
   }
 
@@ -227,16 +304,16 @@ export function nose(r: Recipe): Spec[] {
   const isCurved = r.quad === "RS" || r.quad === "RR";
   const out: Spec[] = [];
 
+  // The visor and jaw already carry most of the face read; the nose is just a
+  // slim bridge sliver, and half the units skip a visible one entirely.
+  if (faceStyle(r, 17, 2) === 0) return out;
+
   if (isCurved) {
-    // Smooth aerodynamic nose contour
-    out.push(
-      B("prim", 0.045 * t, 0.04, 0.035, 0, 0, 0.01, 0.45, 0, 0),
-    );
+    out.push(N("prim", 0.006 * t, 0.02 * t, 0.03, 0, 0, 0.006, 0.5, 0, 0));
   } else {
-    // Sharp faceted nose bridge with sensor slit
     out.push(
-      N("prim", 0.015 * t, 0.045 * t, 0.065, 0, 0, 0.02, 0.35, 0, 0),
-      B("dark", 0.018 * t, 0.04, 0.02, 0, -0.01, 0.03, 0.35, 0, 0),
+      N("prim", 0.008 * t, 0.026 * t, 0.045, 0, 0, 0.012, 0.4, 0, 0),
+      B("dark", 0.012 * t, 0.03, 0.015, 0, -0.008, 0.022, 0.4, 0, 0),
     );
   }
 
@@ -251,19 +328,19 @@ export function mouth(r: Recipe): Spec[] {
   const isCurved = r.quad === "RS" || r.quad === "RR";
   const out: Spec[] = [];
 
+  // Slim vocoder detail that sits on the jaw plate — not a second faceplate.
   if (isCurved) {
-    // Seamless acoustic diaphragm / vocoder slot
     out.push(
-      B("dark", 0.08 * t, 0.02, 0.04, 0, 0, 0.015),
-      B("metal", 0.06 * t, 0.006, 0.045, 0, 0, 0.02),
+      B("dark", 0.07 * t, 0.016, 0.03, 0, 0, 0.012),
+      B("metal", 0.05 * t, 0.005, 0.035, 0, 0, 0.017),
     );
   } else {
-    // Rugged tactical mouth grille with twin intake slats
-    out.push(
-      B("prim", 0.11 * t, 0.05, 0.05, 0, 0, 0.01, 0.2, 0, 0),
-      B("dark", 0.08 * t, 0.01, 0.045, 0, 0.012, 0.025, 0.2, 0, 0),
-      B("dark", 0.08 * t, 0.01, 0.045, 0, -0.012, 0.025, 0.2, 0, 0),
-    );
+    const bars = faceStyle(r, 21, 2) === 0 ? 2 : 3;
+    out.push(B("dark", 0.09 * t, 0.03, 0.035, 0, 0, 0.008, 0.2, 0, 0));
+    for (let i = 0; i < bars; i++) {
+      const gy = (i - (bars - 1) / 2) * 0.012;
+      out.push(B("metal", 0.07 * t, 0.005, 0.03, 0, gy, 0.022, 0.2, 0, 0));
+    }
   }
 
   return out;
@@ -283,16 +360,17 @@ export function jaw(r: Recipe): Spec[] {
   );
 
   if (isCurved) {
-    // Sleek streamlined jawline cradling the full visor bottom
+    // Sleek streamlined jawline: wide at the cheeks, tapering downward
     out.push(
-      Capsule("prim", 0.095 * t, 0.06, 0, 0.01, 0.01, 0.2, 0, 0, r.segs),
-      B("dark", 0.07 * t, 0.035, 0.06, 0, -0.02, 0.01),
+      Trap("prim", 0.13 * t, 0.055 * t, 0.08, 0, -0.002, 0.012, 0.32, 0, 0, 0.09),
+      B("dark", 0.08 * t, 0.01, 0.03, 0, 0.018, 0.028, 0.3, 0, 0),
     );
   } else {
-    // Heavy angular tactical jaw
+    // Sharp angular jaw: broad mandible plate tapering to a narrow chin base
     out.push(
-      B("prim", 0.16 * t, 0.06, 0.11, 0, 0, 0.02, 0.25, 0, 0),
-      B("dark", 0.11 * t, 0.035, 0.08, 0, -0.015, 0.03, 0.25, 0, 0),
+      Trap("prim", 0.15 * t, 0.05 * t, 0.095, 0, 0, 0.016, 0.34, 0, 0, 0.11),
+      // thin under-cut shadow line so jaw + chin read as one unit
+      B("dark", 0.09 * t, 0.01, 0.03, 0, 0.02, 0.03, 0.3, 0, 0),
     );
   }
 
@@ -437,20 +515,24 @@ export function cheek(r: Recipe, isLeft: boolean): Spec[] {
 export function chin(r: Recipe): Spec[] {
   const t = r.thick;
   const isCurved = r.quad === "RS" || r.quad === "RR";
+  // DNA sets how far the chin juts and how sharp it is.
+  const jut = 0.02 + faceStyle(r, 13, 4) * 0.01; // 0.02..0.05 forward
   const out: Spec[] = [];
 
   if (isCurved) {
-    // Sleek chin spoiler tapering from the full visor
+    // Sleek chin spoiler — a soft forward point off the jawline (Part 1),
+    // with a slim Part 2 accent ridge along its crest.
     out.push(
-      B("prim", 0.065 * t, 0.04, 0.05, 0, 0, 0.01, 0.35, 0, 0),
-      B("sec", 0.035 * t, 0.02, 0.04, 0, -0.01, 0.02, 0.35, 0, 0),
+      Wedge("prim", 0.075 * t, 0.045, 0.05 + jut, 0, -0.004, 0.012 + jut * 0.4, 0.62, 0, 0),
+      B("sec", 0.02 * t, 0.012, 0.05, 0, 0.006, 0.02 + jut * 0.4, 0.62, 0, 0),
     );
   } else {
-    // Heavy angular tactical chin latch
+    // Aggressive protruding chin blade (Part 1) + Part 2 spine accent.
     out.push(
-      B("prim", 0.085 * t, 0.05, 0.07, 0, 0, 0.02, 0.3, 0, 0),
-      B("dark", 0.055 * t, 0.03, 0.05, 0, -0.01, 0.03, 0.3, 0, 0),
-      C("metal", 0.008, 0.008, 0.07 * t, 0, 0.01, 0.04, 0, 0, Math.PI / 2, 6),
+      Wedge("prim", 0.085 * t, 0.05, 0.06 + jut, 0, 0, 0.016 + jut * 0.5, 0.7, 0, 0),
+      B("sec", 0.022 * t, 0.014, 0.06, 0, 0.008, 0.024 + jut * 0.5, 0.7, 0, 0),
+      // hinge pin tying it to the jaw
+      C("metal", 0.007, 0.007, 0.06 * t, 0, 0.014, 0.006, 0, 0, Math.PI / 2, 6),
     );
   }
 
