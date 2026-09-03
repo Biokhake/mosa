@@ -158,6 +158,9 @@ const NO_DRESS = new Set([
   // every head feature — each is authored complete; generic dressing here
   // just produces small boxes floating off the face.
   "helm", "visor", "brow", "eye", "nose", "mouth", "jaw", "ear", "vfin", "antenna", "cheek", "chin",
+  // kit-factory parts — these already carry their full seated Part-2 layer
+  // (layeredAccents); a second generic pass just makes shapes interfere.
+  "shoulder", "shin", "foot", "cockpit", "skirt", "vambrace", "pack",
 ]);
 
 function dressPart2(prim: Spec[], r: Recipe, slotId: string): Spec[] {

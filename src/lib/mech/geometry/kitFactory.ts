@@ -113,20 +113,87 @@ function shp(
   }
 }
 
+interface Face {
+  w: number;
+  h: number;
+  front: number;
+  back: number;
+  cx: number;
+  cy: number;
+}
+
+/** The front face of a shell centred at (cx,cy,cz) with the given depth. */
+function faceOf(cx: number, cy: number, cz: number, w: number, h: number, depth: number): Face {
+  return { w, h, front: cz + depth * 0.5, back: cz - depth * 0.5, cx, cy };
+}
+
 /**
- * =========================================================================
- * Part-2 decoration bonded to the Part-1 shell.
- *
- * Feedback pass:
- *   - the "same-morpheme stepped stack" is now ONE composition out of five
- *     (~20% of kits) instead of the default — the rest get a single hero
- *     panel, a flush rib set, an asymmetric plate, or a minimal node.
- *   - every element is seated so its back face is embedded in the shell
- *     front (lz < shell front): Part 2 is always flush on Part 1, never
- *     floating in front of it.
- *   - cone/dome accents are remapped to a panel family here so body
- *     armour stays plate-like (the pointy shapes live on the visor/crest).
- * =========================================================================
+ * Bond a Part-2 accent to a Part-1 face so it reads as one plate even with
+ * edge lines on:
+ *   - clamped to a fraction of the face so its outline never crosses the shell
+ *     edge (rounds are pulled in harder — a circle can't hug a square corner);
+ *   - offset kept inside the leftover margin, so nothing overhangs;
+ *   - seated with its back embedded, ~25% of its depth proud, and never poking
+ *     through the shell back;
+ *   - yaw clamped so an angled panel can't scissor across the shell edges.
+ */
+function seatAccent(
+  shape: ShapeId,
+  mat: MatKey,
+  face: Face,
+  pw: number,
+  ph: number,
+  pd: number,
+  ox = 0,
+  oy = 0,
+  yaw = 0,
+): Spec {
+  const round = shape === SHAPE.CYL || shape === SHAPE.HEX || shape === SHAPE.DOME || shape === SHAPE.OCTA;
+  const cap = round ? 0.6 : 0.8;
+  pw = Math.min(pw, face.w * cap);
+  ph = Math.min(ph, face.h * cap);
+  pd = Math.max(0.014, Math.min(pd, (face.front - face.back) * 0.72));
+  const mx = Math.max(0, (face.w - pw) * 0.5);
+  const my = Math.max(0, (face.h - ph) * 0.5);
+  ox = Math.max(-mx, Math.min(mx, ox));
+  oy = Math.max(-my, Math.min(my, oy));
+  let lz = face.front - pd * 0.75;
+  const minLz = face.back + pd * 0.5 + 0.006;
+  if (lz < minLz) lz = minLz;
+  return shp(shape, mat, pw, ph, pd, face.cx + ox, face.cy + oy, lz, Math.max(-0.2, Math.min(0.2, yaw)));
+}
+
+/**
+ * A nozzle / vent sunk into a flush recessed housing so nothing pierces a
+ * panel edge. `(x,y,z)` is the housing centre, already sitting ON the shell.
+ */
+function socketPort(
+  mat: MatKey,
+  x: number,
+  y: number,
+  z: number,
+  rad: number,
+  depth: number,
+  rx = 0,
+  ry = 0,
+  rz = 0,
+  glow = true,
+): Spec[] {
+  const seg = 10;
+  const o: Spec[] = [
+    C("dark", rad * 1.55, rad * 1.55, depth * 0.6, x, y, z, rx, ry, rz, seg),
+    C(mat, rad, rad * 0.82, depth, x, y, z, rx, ry, rz, seg),
+  ];
+  if (glow) o.push(C("glow", rad * 0.5, rad * 0.5, depth * 0.62, x, y, z, rx, ry, rz, seg));
+  return o;
+}
+
+/**
+ * Part-2 decoration bonded to the Part-1 shell (feedback pass 3).
+ *   - one accent composition per part, always seated via seatAccent, so with
+ *     edges on nothing scissors, overhangs or floats;
+ *   - stepped stack kept to ~20% of kits; the rest get a single panel, a
+ *     recessed grille, or a minimal stud.
  */
 function layeredAccents(
   dna: KitDNA,
@@ -139,39 +206,31 @@ function layeredAccents(
   mats: MatKey[] = ["sec", "trim"],
 ): Spec[] {
   const out: Spec[] = [];
-  const front = cz + baseDepth * 0.5;
+  const face = faceOf(cx, cy, cz, w, h, baseDepth);
   const m0 = mats[0]!;
   const m1 = mats[Math.min(1, mats.length - 1)]!;
   const panel =
-    dna.accentShape === SHAPE.CONE || dna.accentShape === SHAPE.DOME
-      ? SHAPE.TRAP
-      : dna.accentShape;
+    dna.accentShape === SHAPE.CONE || dna.accentShape === SHAPE.DOME ? SHAPE.TRAP : dna.accentShape;
   const mode = dna.hash % 10;
 
   if (mode < 2) {
-    // ~20% — the stepped crest: big under-plate, one clearly smaller cap.
-    const aw = w * 0.64;
-    const ah = h * 0.66;
-    const ad0 = Math.max(0.02, baseDepth * 0.4);
-    out.push(shp(panel, m0, aw, ah, ad0, cx, cy, front - ad0 * 0.4, 0));
-    const ad1 = Math.max(0.016, baseDepth * 0.26);
-    out.push(shp(panel, m1, aw * 0.5, ah * 0.5, ad1, cx, cy + h * 0.06, front - ad0 * 0.4 + ad0 * 0.35, dna.twist * 0.7));
-  } else if (mode < 6) {
-    // ~40% — a single asymmetric hero panel embedded in the shell face.
-    const aw = w * 0.6;
-    const ah = h * 0.74;
-    const ad = Math.max(0.02, baseDepth * 0.44);
-    out.push(shp(panel, m0, aw, ah, ad, cx + dna.splay * w * 0.18, cy + h * 0.02, front - ad * 0.45, dna.twist * 0.5));
-  } else if (mode < 8) {
-    // ~20% — a flush rib / louver set, sitting right on the surface.
-    const n = 2 + ((dna.hash >> 4) % 3);
-    for (let i = 0; i < n; i++) {
-      const gy = (i - (n - 1) / 2) * h * 0.17;
-      out.push(B(m0, w * 0.52, Math.max(0.01, h * 0.08), Math.max(0.014, baseDepth * 0.2), cx, cy + gy, front - baseDepth * 0.06, 0, 0, dna.twist * 0.2));
-    }
+    // ~20% — stepped crest: big under-plate + ONE clearly smaller concentric cap
+    out.push(seatAccent(panel, m0, face, w * 0.62, h * 0.66, baseDepth * 0.34, 0, 0, 0));
+    out.push(
+      seatAccent(panel, m1, { ...face, front: face.front + baseDepth * 0.12 }, w * 0.34, h * 0.34, baseDepth * 0.24, 0, h * 0.04, dna.twist * 0.35),
+    );
+  } else if (mode < 7) {
+    // ~50% — one hero panel, gently offset
+    out.push(seatAccent(panel, m0, face, w * 0.6, h * 0.72, baseDepth * 0.38, dna.splay * w * 0.1, h * 0.02, dna.twist * 0.25));
+  } else if (mode < 9) {
+    // ~20% — one shallow recessed grille: dark pocket + a single slim rib
+    out.push(seatAccent(SHAPE.BOX, "dark", face, w * 0.46, h * 0.4, baseDepth * 0.18, 0, 0, 0));
+    out.push(
+      seatAccent(SHAPE.BOX, m0, { ...face, front: face.front + baseDepth * 0.03 }, w * 0.38, h * 0.09, baseDepth * 0.12, 0, 0, 0),
+    );
   } else {
-    // ~20% — minimal: one small node hugging the surface.
-    out.push(shp(panel, m0, w * 0.3, h * 0.3, Math.max(0.016, baseDepth * 0.3), cx + dna.splay * w * 0.3, cy - h * 0.12, front - baseDepth * 0.08, 0));
+    // ~10% — a single minimal stud
+    out.push(seatAccent(panel, m0, face, w * 0.26, h * 0.26, baseDepth * 0.26, dna.splay * w * 0.22, -h * 0.1, 0));
   }
   return out;
 }
@@ -201,31 +260,36 @@ export function buildLayeredShoulder(kit: ParsedKit, t: number, s: number, detai
     C("metal", 0.012, 0.012, 0.08, -0.02, -0.04, 0.045, 0.28, 0, 0, 6),
   );
 
-  // LAYER 2: MAIN — DNA base shape, real volumetric depth
+  // LAYER 2: MAIN — DNA base shape, real volumetric depth. A shallow bevel
+  // block on top instead of a splayed cap.
   const mainX = 0.035;
   const mainY = 0.025;
-  const wide = archetype === "heavy" || archetype === "beast" ? 0.28 : archetype === "speed" ? 0.2 : 0.24;
-  const tall = archetype === "speed" ? 0.16 : archetype === "heavy" ? 0.24 : 0.2;
+  const wide = archetype === "heavy" || archetype === "beast" ? 0.26 : archetype === "speed" ? 0.19 : 0.23;
+  const tall = archetype === "speed" ? 0.16 : archetype === "heavy" ? 0.23 : 0.2;
   const mainD = shellDepth(dna, 0.12);
+  const halfW = wide * t * 0.5;
+  const halfH = tall * t * 0.5;
+  const boxy =
+    dna.baseShape === SHAPE.BOX || dna.baseShape === SHAPE.TRAP || dna.baseShape === SHAPE.WEDGE;
   out.push(shp(dna.baseShape, "prim", wide * t, tall * t, mainD, mainX, mainY, 0, 0));
-  // taper cap so the pauldron isn't a slab
-  out.push(
-    Trap("prim", wide * t * dna.taper * 0.7, wide * t * 0.9, 0.05 * t, mainX, mainY + tall * t * 0.42, mainD * 0.1, 0, 0, 0, mainD * 0.8),
-  );
+  // a matching top cap — a small bevel for boxy shells, skipped for round ones
+  if (boxy) {
+    out.push(B("prim", wide * t * 0.78, 0.045 * t, mainD * 0.78, mainX, mainY + halfH - 0.012, 0));
+  }
 
-  // LAYER 3: ACCENT — layered cross-combined panels stepped forward
-  out.push(...layeredAccents(dna, mainX, mainY, 0, wide * t * 0.82, tall * t * 0.9, mainD));
+  // LAYER 3: ACCENT — one seated Part-2 composition on the front face
+  out.push(...layeredAccents(dna, mainX, mainY, 0, wide * t, tall * t, mainD));
 
-  // LAYER 4: HARDWARE — lateral thruster / louver + telemetry
+  // LAYER 4: HARDWARE — one socketed vernier for the faster frames, sunk into
+  // the +X face so it never pierces a panel edge. Telemetry is a flush line.
   if (detailLevel >= 12 || archetype === "speed" || archetype === "heroic") {
     out.push(
-      C("metal", 0.026, 0.038, 0.045, mainX + wide * t * 0.5, mainY, 0, 0, 0, -Math.PI / 2, 8),
-      C("glow", 0.018, 0.028, 0.02, mainX + wide * t * 0.55, mainY, 0, 0, 0, -Math.PI / 2, 8),
+      ...socketPort("metal", mainX + halfW - 0.03, mainY, mainD * 0.12, 0.02, 0.045, 0, 0, -Math.PI / 2),
     );
-  } else {
-    out.push(B("metal", 0.016, 0.07 * t, 0.12, mainX + wide * t * 0.46, mainY - 0.01, 0));
   }
-  out.push(C("glow", 0.008, 0.008, 0.05, mainX + 0.03, mainY + 0.07, mainD * 0.5, 0, 0, Math.PI / 2, 6));
+  if (boxy) {
+    out.push(B("glow", 0.05, 0.01, 0.012, mainX, mainY + halfH * 0.5, mainD * 0.5 - 0.004));
+  }
 
   return out;
 }
@@ -255,38 +319,29 @@ export function buildLayeredShin(kit: ParsedKit, t: number, _s: number, _detailL
   const botW =
     archetype === "heavy" ? 0.185 : archetype === "speed" || archetype === "beast" ? 0.085 : 0.1;
   const mainD = shellDepth(dna, 0.12);
-  out.push(
-    Trap("prim", topW * t, botW * t, 0.24 * t, 0, 0.01, 0.02, -0.12, 0, 0, mainD),
-  );
-  // front tibial deflector strip
-  out.push(B("trim", 0.026 * t, 0.14 * t, 0.02, 0, -0.01, 0.02 + mainD * 0.55, -0.12, 0, 0));
+  const gh = 0.24 * t;
+  out.push(Trap("prim", topW * t, botW * t, gh, 0, 0.01, 0.02, -0.12, 0, 0, mainD));
 
-  // LAYER 3: ACCENT — knee striker seated ON the greave top-front, plus the
-  // shared Part-2 decoration (which is mostly a single hero panel now).
-  const greaveFront = 0.02 + mainD / 2;
-  const kneeShape = archetype === "beast" ? SHAPE.CONE : dna.accentShape;
-  out.push(shp(kneeShape, "sec", 0.1 * t, 0.11 * t, mainD * 0.55, 0, 0.115, greaveFront - mainD * 0.25, 0.25));
-  out.push(...layeredAccents(dna, 0, 0.0, 0.02, topW * t * 0.9, 0.16 * t, mainD, ["sec", "trim"]));
+  // LAYER 3: ACCENT — knee striker + the shared Part-2 composition, both
+  // seated on the greave front so nothing floats or scissors with edges on.
+  const face: Face = faceOf(0, 0.06, 0.02, topW * t * 0.9, gh * 0.7, mainD);
+  const kneeShape =
+    archetype === "beast" || dna.accentShape === SHAPE.CONE || dna.accentShape === SHAPE.DOME
+      ? SHAPE.WEDGE
+      : dna.accentShape;
+  out.push(seatAccent(kneeShape, "sec", { ...face, cy: gh * 0.38 }, 0.085 * t, 0.075 * t, mainD * 0.42, 0, 0, 0.12));
+  out.push(...layeredAccents(dna, 0, 0.0, 0.02, topW * t * 0.9, gh * 0.66, mainD, ["sec", "trim"]));
 
-  // LAYER 3C: outer calf fin — ROOTED inside the greave side (x within the
-  // shell), sweeping out and back. Never floating off the leg.
-  const rootX = 0.045 * t;
+  // LAYER 3C: outer calf plate — a single wedge rooted in the greave side,
+  // no separate glow bit. Rear thruster (fast frames) is socketed at the back.
+  const rootX = topW * t * 0.4;
+  out.push(Wedge("trim", 0.04, gh * 0.4, mainD * 0.5, rootX + 0.012, 0.0, 0.0, 0, 0, -0.1));
   if (archetype === "speed" || archetype === "heroic") {
-    out.push(
-      Wedge("trim", 0.11, 0.12 * t, 0.05, rootX + 0.03, 0.0, -0.01, 0.12, 0, -0.35),
-      C("glow", 0.012, 0.02, 0.03, rootX + 0.07, -0.03, -0.03, -0.35, 0, 0, 8),
-    );
-  } else if (archetype === "heavy") {
-    out.push(
-      B("dark", 0.055, 0.14 * t, 0.08, rootX + 0.02, -0.01, -0.01, 0, 0, -0.12),
-      C("glow", 0.016, 0.016, 0.02, rootX + 0.045, -0.06, -0.02, 0, 0, 0, 8),
-    );
-  } else {
-    out.push(B("metal", 0.05, 0.1 * t, 0.06, rootX + 0.015, -0.02, -0.005, 0, 0, -0.1));
+    out.push(...socketPort("dark", 0, -gh * 0.12, -mainD * 0.32, 0.022, 0.05, -0.35, 0, 0));
   }
 
   // LAYER 4: ankle actuator (open gap under the armor — no foot clipping)
-  out.push(C("metal", 0.014, 0.014, 0.06, 0, -0.09, 0, 0, 0, Math.PI / 2, 6));
+  out.push(C("metal", 0.013, 0.013, botW * t * 0.9, 0, -0.09, 0, 0, 0, Math.PI / 2, 6));
 
   return out;
 }
@@ -322,10 +377,13 @@ export function buildLayeredFoot(kit: ParsedKit, t: number, _s: number, _detailL
     Trap("sec", 0.085 * t, 0.105 * t, 0.032, 0, 0.032, -0.04, -0.22, 0, 0, 0.09),
     B("metal", 0.075 * t, 0.028, 0.05, 0, -0.01, -0.1),
   );
-  if (dna.accentShape === SHAPE.CONE || archetype === "beast") {
-    out.push(N("acc", 0.004, 0.02, 0.09, 0, -0.005, 0.19, Math.PI / 2, 0, 0));
+  // toe accent — a slim seated cap on the instep, or a claw for beasts
+  if (archetype === "beast") {
+    out.push(N("acc", 0.004, 0.018, 0.07, 0, -0.006, 0.15, Math.PI / 2, 0, 0));
   } else {
-    out.push(shp(dna.accentShape, "trim", 0.06 * t, 0.03, 0.05, 0, 0.02, 0.11, dna.twist));
+    const toeShape =
+      dna.accentShape === SHAPE.CONE || dna.accentShape === SHAPE.DOME ? SHAPE.BOX : dna.accentShape;
+    out.push(shp(toeShape, "trim", 0.06 * t, 0.026, 0.04, 0, 0.018, 0.085, 0));
   }
 
   return out;
@@ -345,15 +403,21 @@ export function buildLayeredCockpit(kit: ParsedKit, t: number, _s: number, _deta
 
   // Layer 2: main hatch cowl — DNA base shape, amplified depth (no paper chests)
   const mainD = shellDepth(dna, 0.14);
-  out.push(shp(dna.baseShape, "prim", 0.13 * t, 0.16 * t, mainD, 0, 0.01, 0.02, 0));
-  // central wedge mass so the chest reads as sculpted, not a lid
-  out.push(Wedge("prim", 0.1 * t, 0.13 * t, mainD * 0.7, 0, 0.02, mainD * 0.5, 0.2, 0, 0));
-
-  // Layer 3: cross-combined vent / latch stack — accent family, stepped out
-  out.push(...layeredAccents(dna, 0, 0.0, 0.02, 0.1 * t, 0.13 * t, mainD, ["sec", "metal", "trim"]));
+  const cw = 0.14 * t;
+  const ch = 0.16 * t;
+  out.push(shp(dna.baseShape, "prim", cw, ch, mainD, 0, 0.01, 0.02, 0));
+  // central sculpted mass, seated on the hatch front
   out.push(
-    B("glow", 0.05 * t, 0.015, 0.02, 0, 0.04, 0.04 + mainD * 0.6, 0.2, 0, 0),
-    C("metal", 0.008, 0.008, 0.1 * t, 0, -0.04, 0.05, 0, 0, Math.PI / 2, 6),
+    Wedge("prim", cw * 0.62, ch * 0.7, mainD * 0.5, 0, 0.02, 0.02 + mainD * 0.3, 0.16, 0, 0),
+  );
+
+  // Layer 3: the shared Part-2 composition + a flush intake line + latch studs
+  out.push(...layeredAccents(dna, 0, 0.01, 0.02, cw, ch, mainD, ["sec", "metal", "trim"]));
+  const front = 0.02 + mainD * 0.5;
+  out.push(
+    B("glow", cw * 0.4, 0.012, 0.012, 0, 0.045, front - 0.004, 0.16, 0, 0),
+    B("metal", 0.014, 0.014, mainD * 0.7, -cw * 0.42, -0.03, 0.02),
+    B("metal", 0.014, 0.014, mainD * 0.7, cw * 0.42, -0.03, 0.02),
   );
 
   return out;
@@ -376,9 +440,11 @@ export function buildLayeredSkirt(kit: ParsedKit, t: number, _s: number, _detail
   const wide = archetype === "heavy" ? 0.15 : archetype === "speed" ? 0.11 : 0.13;
   const tall = archetype === "speed" || archetype === "beast" ? 0.22 : 0.18;
   const mainD = shellDepth(dna, 0.09);
-  out.push(shp(dna.baseShape, "prim", wide * t, tall * t, mainD, 0, -0.04, 0, 0));
-  out.push(...layeredAccents(dna, 0.02, -0.03, 0, wide * t * 0.75, tall * t * 0.7, mainD, ["sec", "trim"]));
-  out.push(C("glow", 0.015, 0.022, 0.04, 0.03, -0.11, -0.03, 0.4, 0, -0.2, 8));
+  const sh = tall * t;
+  out.push(shp(dna.baseShape, "prim", wide * t, sh, mainD, 0, -0.04, 0, 0));
+  out.push(...layeredAccents(dna, 0, -0.04, 0, wide * t, sh, mainD, ["sec", "trim"]));
+  // attitude-control vernier socketed into the skirt bottom edge, facing down
+  out.push(...socketPort("dark", 0, -0.04 - sh * 0.42, mainD * 0.1, 0.016, 0.038, Math.PI, 0, 0));
 
   return out;
 }
@@ -395,11 +461,15 @@ export function buildLayeredVambrace(kit: ParsedKit, t: number, _s: number, _det
   out.push(B("dark", 0.1 * t, 0.14 * t, 0.07, 0, 0, 0.02));
 
   const mainD = shellDepth(dna, 0.08);
-  out.push(shp(dna.baseShape, "prim", 0.12 * t, 0.14 * t, mainD, 0, 0, 0.04, 0));
-  out.push(...layeredAccents(dna, 0, 0, 0.04, 0.09 * t, 0.11 * t, mainD, ["sec", "metal"]));
+  const vw = 0.12 * t;
+  const vh = 0.14 * t;
+  out.push(shp(dna.baseShape, "prim", vw, vh, mainD, 0, 0, 0.04, 0));
+  out.push(...layeredAccents(dna, 0, 0, 0.04, vw, vh, mainD, ["sec", "metal"]));
+  // equipment hardpoint rail — a flush recessed channel with a slim rib
+  const front = 0.04 + mainD * 0.5;
   out.push(
-    B("metal", 0.03 * t, 0.12 * t, 0.018, 0, 0, 0.05 + mainD * 0.6, 0.1, 0, 0),
-    C("glow", 0.007, 0.007, 0.05, 0.03, -0.02, 0.08, 0, 0, 0, 6),
+    B("dark", 0.028 * t, vh * 0.8, mainD * 0.3, 0, 0, front - mainD * 0.12),
+    B("metal", 0.02 * t, vh * 0.7, 0.012, 0, 0, front - 0.004),
   );
 
   return out;
@@ -460,19 +530,30 @@ export function buildLayeredPack(kit: ParsedKit, t: number, _s: number, _detailL
   const out: Spec[] = [];
   const { dna } = kit;
 
-  out.push(B("dark", 0.18 * t, 0.24 * t, 0.12, 0, 0, -0.08));
+  const bw = 0.2 * t;
+  const bh = 0.24 * t;
+  out.push(B("dark", 0.18 * t, bh, 0.12, 0, 0, -0.08));
 
   const mainD = shellDepth(dna, 0.16);
-  out.push(shp(dna.baseShape, "prim", 0.24 * t, 0.2 * t, mainD, 0, 0.02, -0.12 + mainD * 0.3, 0));
-  out.push(...layeredAccents(dna, 0, 0.02, -0.12, 0.2 * t, 0.16 * t, mainD, ["sec", "trim"]));
-
+  const czc = -0.14 + mainD * 0.5;
+  out.push(shp(dna.baseShape, "prim", bw, 0.2 * t, mainD, 0, 0.02, czc, 0));
+  // rear decoration — one seated Part-2 panel on the pack's back face (−z)
+  const rear = czc - mainD * 0.5;
+  const pnl = dna.hash % 2 === 0 ? SHAPE.BOX : SHAPE.TRAP;
   out.push(
-    C("metal", 0.042, 0.052, 0.06, -0.08 * t, -0.1, -0.16, 0.5, 0, 0, 8),
-    C("glow", 0.035, 0.045, 0.02, -0.08 * t, -0.12, -0.18, 0.5, 0, 0, 8),
-    C("metal", 0.042, 0.052, 0.06, 0.08 * t, -0.1, -0.16, 0.5, 0, 0, 8),
-    C("glow", 0.035, 0.045, 0.02, 0.08 * t, -0.12, -0.18, 0.5, 0, 0, 8),
-    Wedge("trim", 0.025, 0.14, 0.26, -0.16 * t, 0.08, -0.1, 0.3, -0.25, 0),
-    Wedge("trim", 0.025, 0.14, 0.26, 0.16 * t, 0.08, -0.1, 0.3, 0.25, 0),
+    shp(pnl, "sec", bw * 0.66, 0.14 * t, mainD * 0.32, 0, 0.03, rear + mainD * 0.13, 0),
+    B("dark", bw * 0.5, 0.02, mainD * 0.24, 0, 0.03 - 0.07 * t, rear + mainD * 0.1),
+  );
+
+  // twin main thrusters — socketed into the pack underside, firing down-back
+  out.push(
+    ...socketPort("metal", -0.08 * t, -bh * 0.44, -0.1, 0.04, 0.07, 0.5, 0, 0),
+    ...socketPort("metal", 0.08 * t, -bh * 0.44, -0.1, 0.04, 0.07, 0.5, 0, 0),
+  );
+  // stabiliser wings rooted on the pack sides
+  out.push(
+    Wedge("trim", 0.05, 0.16 * t, 0.24, -bw * 0.44, 0.06, -0.08, 0.25, -0.2, 0),
+    Wedge("trim", 0.05, 0.16 * t, 0.24, bw * 0.44, 0.06, -0.08, 0.25, 0.2, 0),
   );
 
   return out;
