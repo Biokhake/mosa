@@ -13,6 +13,8 @@ import type { ThighRig } from "../skeleton";
 import { pickLimbTopology } from "./topology";
 import type { LimbTopology } from "./topology";
 import { buildLimbArmour } from "./limbArmour";
+import { mountGeometry } from "./mount";
+import type { PartInterface } from "../types";
 
 export interface ThighOpts {
   topology?: LimbTopology;
@@ -235,6 +237,37 @@ function details(ctx: Ctx, s: Shell) {
   }
 }
 
+/**
+ * The thigh's connection contract. Parent = the hip (toward the pelvis, a ball
+ * joint); child = the knee (toward the shin).
+ */
+export function thighInterfaces(rig: ThighRig): PartInterface[] {
+  const g = rig.girth;
+  return [
+    {
+      id: "thigh.hip",
+      role: "parent",
+      parentSlot: "pelvis",
+      pos: [0, rig.hipY, 0],
+      normal: [0, 1, 0],
+      axis: [1, 0, 0],
+      kind: "ball",
+      size: g * 0.72,
+      rating: rig.load.jointTorque.hip ?? 0.6,
+    },
+    {
+      id: "thigh.knee",
+      role: "child",
+      pos: [0, rig.kneeY, -g * 0.12],
+      normal: [0, -1, 0],
+      axis: [1, 0, 0],
+      kind: "hinge",
+      size: g * 0.6,
+      rating: rig.load.jointTorque.knee ?? 0.5,
+    },
+  ];
+}
+
 export function grammarThigh(brief: Brief, prop: Proportions, rig: ThighRig, opts: ThighOpts = {}): Prim[] {
   const variant = opts.variant ?? 0;
   const topology = opts.topology ?? pickLimbTopology(brief, makeRng(`leg:${brief.seed}`));
@@ -243,5 +276,7 @@ export function grammarThigh(brief: Brief, prop: Proportions, rig: ThighRig, opt
   const s = thighShell(ctx);
   hipCap(ctx, s);
   details(ctx, s);
+  // the child part owns the joint hardware: emit the hip ball (parent iface)
+  ctx.out.push(...mountGeometry(thighInterfaces(rig)[0]!, brief));
   return ctx.out;
 }

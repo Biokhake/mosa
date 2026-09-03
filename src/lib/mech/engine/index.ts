@@ -23,8 +23,9 @@ import { makeBrief, briefFromLegacyId } from "./brief";
 import { resolveProportions } from "./proportions";
 import { buildRig, shinView, thighView } from "./skeleton";
 import type { ShinRig } from "./skeleton";
-import { grammarShin } from "./grammar/shin";
-import { grammarThigh } from "./grammar/thigh";
+import { grammarShin, shinInterfaces } from "./grammar/shin";
+import { grammarThigh, thighInterfaces } from "./grammar/thigh";
+import { validateAssembly } from "./assembly";
 import { topologyPool, topologyAffinity } from "./grammar/topology";
 import type { LimbTopology } from "./grammar/topology";
 import { romSweepShin, romSweepThigh } from "./mechanics/romSweep";
@@ -44,6 +45,9 @@ export { critique } from "./critic";
 export type { Critique } from "./critic";
 export { generatePopulation } from "./population";
 export type { Population, PopulationEntry } from "./population";
+export { validateAssembly } from "./assembly";
+export type { AssemblyReport } from "./assembly";
+export { mountGeometry, mountAll, mountKindForDof } from "./grammar/mount";
 
 /** How many candidates the generate-and-select loop builds per slot. */
 const REFINE_COUNT = 5;
@@ -89,6 +93,7 @@ function shinArtifact(brief: Brief, prop: Proportions, view: ShinRig): SlotArtif
     prims: best.prims,
     joints: view.joints,
     hardpoints: view.hardpoints,
+    interfaces: shinInterfaces(view),
     functional: {
       romOk: best.romOk,
       romCollisions: best.romCollisions,
@@ -132,6 +137,7 @@ function thighArtifact(brief: Brief, prop: Proportions, rig: Rig): SlotArtifact 
     prims: best.prims,
     joints: view.joints,
     hardpoints: view.hardpoints,
+    interfaces: thighInterfaces(view),
     functional: {
       romOk: best.romOk,
       romCollisions: best.romCollisions,
@@ -213,8 +219,21 @@ export function designKit(brief: Brief): KitArtifact {
   if (thigh) slots.thigh = thigh;
 
   const allPrims = Object.values(slots).flatMap((s) => s!.prims);
+  const interfaces = Object.entries(slots).flatMap(([slot, s]) =>
+    (s!.interfaces ?? []).map((i) => ({ ...i, id: `${slot}:${i.id}` })),
+  );
   const metrics = measureMetrics(allPrims);
-  return { brief, slots, metrics, band: classifyBand(metrics) };
+  return { brief, slots, interfaces, metrics, band: classifyBand(metrics) };
+}
+
+/**
+ * Check that every designed part is actually connected — no floating parts.
+ * Returns which parent interfaces met a mating child interface and which did
+ * not. Callable from any tool with a `KitArtifact`.
+ */
+export function checkKitAssembly(brief: Brief) {
+  const rig = buildRig(brief, resolveProportions(brief));
+  return validateAssembly(designKit(brief), rig);
 }
 
 /**

@@ -120,6 +120,34 @@ export interface Hardpoint {
   rating: number;
 }
 
+/** How two parts physically join at an interface. */
+export type MountKind = "bolt-flange" | "ball" | "hinge" | "rail" | "collar-clamp";
+
+/**
+ * A part's connection contract. Every engine part declares the interfaces it
+ * presents — one facing its parent up the kinematic chain, one facing each
+ * child, plus any accessory hardpoints — and emits the physical connector
+ * geometry for each, so a part is never left floating regardless of how the
+ * proportions came out. All coordinates are in the PART's own local frame.
+ */
+export interface PartInterface {
+  id: string;
+  /** which way the interface faces along the kinematic chain */
+  role: "parent" | "child" | "accessory";
+  /** for a `parent` interface: the slot expected to sit above it */
+  parentSlot?: SlotId;
+  pos: [number, number, number];
+  /** mating direction (unit) — the neighbour approaches along -normal */
+  normal: [number, number, number];
+  /** articulation axis (unit); zero vector if the joint is rigid */
+  axis: [number, number, number];
+  kind: MountKind;
+  /** interface / bolt-circle diameter */
+  size: number;
+  /** relative load rating this interface must carry */
+  rating: number;
+}
+
 /** One bone in the whole-body kinematic tree. */
 export interface Bone {
   id: string;
@@ -295,14 +323,18 @@ export interface SlotArtifact {
   prims: Prim[];
   joints: Joint[];
   hardpoints: Hardpoint[];
+  /** this part's connection contract (Phase 6) */
+  interfaces: PartInterface[];
   functional: FunctionalReport;
   aesthetic?: AestheticReport;
 }
 
-/** The full output for one kit (Phase 1: only `shin` is populated). */
+/** The full output for one kit (Phase 3b: `shin` + `thigh` populated). */
 export interface KitArtifact {
   brief: Brief;
   slots: Partial<Record<SlotId, SlotArtifact>>;
+  /** every designed part's interfaces, prefixed by slot */
+  interfaces: PartInterface[];
   metrics: MetricVector;
   /** assigned only after population classification */
   id?: string;

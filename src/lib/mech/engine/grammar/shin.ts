@@ -17,6 +17,8 @@ import type { ShinRig } from "../skeleton";
 import { pickLimbTopology } from "./topology";
 import type { LimbTopology } from "./topology";
 import { buildLimbArmour } from "./limbArmour";
+import { mountGeometry } from "./mount";
+import type { PartInterface } from "../types";
 
 export interface ShinOpts {
   /** override the philosophy-derived topology (the critic picks per leg) */
@@ -341,6 +343,47 @@ function details(ctx: Ctx, g: Greave) {
   }
 }
 
+/**
+ * The shin's connection contract. Parent = the knee (toward the thigh);
+ * child = the ankle (toward the foot); accessory = the calf hardpoint.
+ */
+export function shinInterfaces(rig: ShinRig): PartInterface[] {
+  const g = rig.girth;
+  return [
+    {
+      id: "shin.knee",
+      role: "parent",
+      parentSlot: "thigh",
+      pos: [0, rig.kneeY, -g * 0.12],
+      normal: [0, 1, 0],
+      axis: [1, 0, 0],
+      kind: "hinge",
+      size: g * 0.6,
+      rating: rig.load.jointTorque.knee ?? 0.5,
+    },
+    {
+      id: "shin.ankle",
+      role: "child",
+      pos: [0, rig.ankleY, 0],
+      normal: [0, -1, 0],
+      axis: [1, 0, 0],
+      kind: "hinge",
+      size: g * 0.48,
+      rating: rig.load.jointTorque.ankle ?? 0.3,
+    },
+    {
+      id: "shin.calf",
+      role: "accessory",
+      pos: [g * 0.5, rig.ankleY + rig.length * 0.3, -g * 0.1],
+      normal: [1, 0, 0],
+      axis: [0, 0, 0],
+      kind: "bolt-flange",
+      size: g * 0.34,
+      rating: 0.3,
+    },
+  ];
+}
+
 export function grammarShin(brief: Brief, prop: Proportions, rig: ShinRig, opts: ShinOpts = {}): Prim[] {
   const variant = opts.variant ?? 0;
   const rng = makeRng(`shin:${brief.seed}:${variant}`);
@@ -352,5 +395,7 @@ export function grammarShin(brief: Brief, prop: Proportions, rig: ShinRig, opts:
   kneeGuard(ctx, g);
   calfPod(ctx, g);
   details(ctx, g);
+  // the child part owns the joint hardware: emit the knee clevis (parent iface)
+  ctx.out.push(...mountGeometry(shinInterfaces(rig)[0]!, brief));
   return ctx.out;
 }
