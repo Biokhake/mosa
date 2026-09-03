@@ -10,6 +10,8 @@ import {
   makeRotaryServo,
   makeStandoffArmor,
   makeCoolingFins,
+  lume,
+  makeThrusterBell,
 } from "./primitives";
 import { generateKitDNA } from "./dna";
 
@@ -108,32 +110,31 @@ export function chestCore(r: Recipe): Spec[] {
  * Pectoral Armor (Left / Right Breastplates).
  * Features multi-tier dimensional air intake vents and layered armor plates.
  */
-export function pec(r: Recipe, isLeft: boolean): Spec[] {
+export function pec(r: Recipe, _isLeft: boolean): Spec[] {
   const t = r.thick;
   const out: Spec[] = [];
-  const sign = isLeft ? -1 : 1;
+  // Built canonically (angled outward, +X); buildPart mirrors the pecL slot so
+  // the breastplates are a true mirror instead of both angled the same way.
+  const ang = 0.18;
 
-  // Angled pectoral strike plate (Trapezoid)
   out.push(
-    Trap("prim", 0.14 * t, 0.16, 0.06, 0, 0, 0.02, 0.15, sign * 0.18, 0),
-    // Main Intake duct housing
-    B("dark", 0.045 * t, 0.085, 0.05, sign * 0.03, 0, 0.03, 0.15, sign * 0.18, 0),
+    Trap("prim", 0.14 * t, 0.16, 0.06, 0, 0, 0.02, 0.15, ang, 0),
+    B("dark", 0.045 * t, 0.085, 0.05, 0.03, 0, 0.03, 0.15, ang, 0),
   );
 
-  // Multi-tier cooling vent fins (입체적 흉부 덕트 분할)
+  // multi-tier cooling vent fins, flush on the duct housing
   out.push(
-    B("metal", 0.04 * t, 0.008, 0.03, sign * 0.03, 0.025, 0.045, 0.15, sign * 0.18, 0),
-    B("metal", 0.04 * t, 0.008, 0.03, sign * 0.03, 0, 0.045, 0.15, sign * 0.18, 0),
-    B("metal", 0.04 * t, 0.008, 0.03, sign * 0.03, -0.025, 0.045, 0.15, sign * 0.18, 0),
+    B("metal", 0.04 * t, 0.008, 0.03, 0.03, 0.025, 0.045, 0.15, ang, 0),
+    B("metal", 0.04 * t, 0.008, 0.03, 0.03, 0, 0.045, 0.15, ang, 0),
+    B("metal", 0.04 * t, 0.008, 0.03, 0.03, -0.025, 0.045, 0.15, ang, 0),
   );
 
   if (r.ornate) {
-    // Layered composite breastplate applique
     out.push(
-      Trap("sec", 0.11 * t, 0.12, 0.03, 0, 0.01, 0.05, 0.15, sign * 0.18, 0),
-      B("trim", 0.12 * t, 0.015, 0.04, 0, 0.07, 0.045, 0.15, sign * 0.18, 0),
-      // Auxiliary sensor nodule
-      C("glow", 0.008, 0.008, 0.02, sign * 0.05, 0.05, 0.055, 0.15, sign * 0.18, 0, 8),
+      Trap("sec", 0.11 * t, 0.12, 0.03, 0, 0.01, 0.05, 0.15, ang, 0),
+      B("trim", 0.12 * t, 0.015, 0.04, 0, 0.07, 0.045, 0.15, ang, 0),
+      // auxiliary sensor — framed, seated on the applique
+      ...lume("glow", 0.007, 0.016, 0.045, 0.05, 0.052, 0.15 + Math.PI / 2, 0, ang, 8),
     );
   }
 
@@ -150,9 +151,9 @@ export function cockpit(r: Recipe): Spec[] {
   // Heavy Armored Cockpit Hatch (Wedge shaped sloped armor)
   out.push(
     Wedge("prim", 0.14 * t, 0.18, 0.12, 0, 0, 0.02, 0.25, 0, 0),
-    // Blast shield visor slit / telemetry port
-    B("dark", 0.08 * t, 0.035, 0.08, 0, 0.04, 0.06, 0.25, 0, 0),
-    C("glow", 0.009, 0.009, 0.06, 0, 0.04, 0.08, Math.PI / 2, 0, 0, 8),
+    // blast-shield slit with a framed telemetry lens set into it
+    B("dark", 0.08 * t, 0.035, 0.06, 0, 0.04, 0.06, 0.25, 0, 0),
+    B("glow", 0.05 * t, 0.012, 0.02, 0, 0.042, 0.078, 0.25, 0, 0),
     // Emergency release latch & hinge pin
     C("metal", 0.01, 0.01, 0.12 * t, 0, -0.06, 0.03, 0, 0, Math.PI / 2, 6),
     B("acc", 0.02 * t, 0.03, 0.03, 0, -0.06, 0.05),
@@ -299,31 +300,28 @@ export function skirtB(r: Recipe): Spec[] {
   );
 
   if (r.ornate) {
-    // Layered composite rear deflector & thruster shroud
+    // rear deflector + twin thruster bells housed under the skirt lip
     out.push(
-      Trap("sec", 0.15 * t, 0.10, 0.025, 0, -0.035, -0.06, 0.25, 0, 0),
-      C("glow", 0.018, 0.018, 0.03, -0.05 * t, -0.07, -0.055, 0.35, 0, 0, 8),
-      C("glow", 0.018, 0.018, 0.03, 0.05 * t, -0.07, -0.055, 0.35, 0, 0, 8),
+      Trap("sec", 0.15 * t, 0.1, 0.025, 0, -0.035, -0.06, 0.25, 0, 0),
+      ...makeThrusterBell("metal", 0.022, 0.05, -0.05 * t, -0.05, -0.05, -0.5, 0, 0, 8),
+      ...makeThrusterBell("metal", 0.022, 0.05, 0.05 * t, -0.05, -0.05, -0.5, 0, 0, 8),
     );
   }
 
   return out;
 }
 
-export function skirtS(r: Recipe, isLeft: boolean): Spec[] {
+export function skirtS(r: Recipe, _isLeft: boolean): Spec[] {
   const t = r.thick;
   const out: Spec[] = [];
-  const sign = isLeft ? -1 : 1;
-
+  // Canonical build; buildPart mirrors the skirtL slot.
   out.push(
     C("metal", 0.008, 0.008, 0.08, 0, 0.03, 0, 0.2, 0, 0, 6),
-    B("prim", 0.035, 0.14, 0.16 * t, sign * 0.02, -0.04, 0, 0, 0, sign * 0.25),
+    B("prim", 0.035, 0.14, 0.16 * t, 0.02, -0.04, 0, 0, 0, 0.25),
   );
 
   if (r.ornate) {
-    out.push(
-      B("sec", 0.025, 0.09, 0.11 * t, sign * 0.035, -0.04, 0, 0, 0, sign * 0.25),
-    );
+    out.push(B("sec", 0.025, 0.09, 0.11 * t, 0.035, -0.04, 0, 0, 0, 0.25));
   }
 
   return out;

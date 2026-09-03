@@ -6,7 +6,7 @@ import { isLeftSlot, isVisorSlot } from "./catalog";
 import { getRecipe, type Recipe } from "./recipes";
 
 import type { Spec } from "./geometry/types";
-import { B, C, Sp, N, Wedge } from "./geometry/primitives";
+import { B, C, Wedge } from "./geometry/primitives";
 
 // Modular Geometry Generators
 import {
@@ -145,12 +145,6 @@ function primBounds(specs: Spec[]) {
   };
 }
 
-function slotSalt(id: string) {
-  const b = base(id);
-  let n = 0;
-  for (let i = 0; i < b.length; i++) n = (n * 33 + b.charCodeAt(i)) | 0;
-  return Math.abs(n);
-}
 
 const NO_DRESS = new Set([
   // joints — self-contained mechanical parts
@@ -163,127 +157,35 @@ const NO_DRESS = new Set([
   "shoulder", "shin", "foot", "cockpit", "skirt", "vambrace", "pack",
 ]);
 
+/**
+ * Generic Part-2 dressing.
+ *
+ * Feedback pass: this used to scatter free-standing boxes / spheres / cones
+ * off the surface (and stack a second decoration onto parts that already had
+ * one). It now only ever cuts flush panel-line grooves into the front face —
+ * thin dark insets that sit ON the shell, never in the air — so density reads
+ * as surface detail and nothing can float or interfere.
+ */
 function dressPart2(prim: Spec[], r: Recipe, slotId: string): Spec[] {
   if (!prim.length) return [];
-  const b = base(slotId);
-  if (NO_DRESS.has(b)) return [];
+  if (NO_DRESS.has(base(slotId))) return [];
 
-  const box = primBounds(prim);
-  const { cy, cz, w, h, d, minY } = box;
-  const q = r.quad === "SS" ? 0 : r.quad === "SR" ? 1 : r.quad === "RS" ? 2 : 3;
-  const segs = r.segs;
-  const x = Math.max(0.028, w * 0.38);
-  const zf = cz + d * 0.42;
-  const yt = cy + h * 0.32;
-  const yb = cy - h * 0.28;
-  const sx = Math.min(w, 0.3);
-  const sy = Math.min(h, 0.3);
-  const sz = Math.min(d, 0.24);
+  const { cx, cy, cz, w, h, d } = primBounds(prim);
+  const grooves = Math.min(4, Math.floor((r.density + 1) / 3)); // 0..4
+  if (grooves <= 0) return [];
 
-  if (!r.ornate) {
-    const n = Math.floor((r.density - 1) / 4);
-    if (n <= 0) return [];
-    const out: Spec[] = [];
-    for (let i = 0; i < n; i++) {
-      const yy = minY + h * (0.3 + i * 0.22 + (r.rank % 5) * 0.012);
-      out.push(B("dark", w * 0.62, Math.max(0.008, h * 0.04), Math.max(0.01, d * 0.1), 0, yy, zf * 0.15));
-    }
-    return out;
-  }
-
-  const motif = (r.code.serial * 19 + slotSalt(slotId) * 13 + r.density * 7 + q * 3) % 25;
   const out: Spec[] = [];
-  switch (motif) {
-    case 0:
-      out.push(B("sec", Math.max(0.016, sx * 0.12), sy * 0.72, sz * 0.34, x, cy, cz + d * 0.1));
-      break;
-    case 1: {
-      const s = Math.max(0.016, sx * 0.13);
-      out.push(B("metal", s, s, s, x * 0.85, yt, zf * 0.45));
-      break;
-    }
-    case 2: {
-      const rad = Math.max(0.011, sx * 0.1);
-      out.push(C("dark", rad, rad * 0.72, sz * 0.42, x, cy, zf, Math.PI / 2, 0, 0, segs));
-      break;
-    }
-    case 3:
-      out.push(B("trim", sx * 0.22, sy * 0.12, sz * 0.48, x * 0.55, yt, zf * 0.25, 0, 0, 0.45));
-      break;
-    case 4:
-      out.push(B("acc", Math.max(0.014, w * 0.08), sy * 0.48, sz * 0.18, 0, cy, zf));
-      break;
-    case 5:
-      if (q >= 2) {
-        out.push({
-          t: "torus",
-          m: "trim",
-          s: [Math.max(0.035, sx * 0.32), Math.max(0.007, sx * 0.055), 0],
-          p: [0, yt, cz],
-          r: [Math.PI / 2, 0, 0],
-        });
-      } else {
-        out.push(B("trim", w * 0.52, Math.max(0.012, h * 0.08), d * 0.18, 0, yt, zf * 0.15));
-      }
-      break;
-    case 6:
-      out.push(B("sec", sx * 0.2, sy * 0.34, sz * 0.52, x, cy + h * 0.06, cz - d * 0.36, 0.35, 0.22, 0));
-      break;
-    case 7:
-      out.push(N("acc", 0.005, Math.max(0.012, sx * 0.1), Math.max(0.036, sy * 0.32), x, yt, cz));
-      break;
-    case 8:
-      out.push(B("dark", Math.max(0.01, w * 0.045), sy * 0.78, sz * 0.62, x * 0.5, cy, cz));
-      break;
-    case 9:
-      out.push(Sp(q >= 2 ? "sec" : "metal", Math.max(0.014, sx * 0.11), x, cy, zf * 0.12, segs));
-      break;
-    case 10:
-      out.push(B("metal", sx * 0.18, Math.max(0.012, h * 0.075), sz * 0.38, x, yt, cz));
-      break;
-    case 11:
-      out.push(B("acc", sx * 0.16, sy * 0.12, Math.max(0.018, d * 0.13), x, cy, zf));
-      break;
-    case 12:
-      if (q === 0) out.push({ t: "tetra", m: "acc", s: [Math.max(0.018, sx * 0.15), 0, 0], p: [x, yt, cz] });
-      else out.push({ t: "octa", m: "trim", s: [Math.max(0.016, sx * 0.13), 0, 0], p: [x, yt, cz] });
-      break;
-    case 13:
-      out.push(C("metal", Math.max(0.007, sx * 0.055), Math.max(0.007, sx * 0.055), sy * 0.68, x, cy, cz - d * 0.36, 0, 0, 0, segs));
-      break;
-    case 14:
-      out.push(B("sec", w * 0.6, Math.max(0.011, h * 0.09), d * 0.16, 0, yt, zf * 0.22));
-      break;
-    case 15:
-      out.push(N("acc", 0.008, 0.02, sy * 0.4, x, yt, zf * 0.2, 0.4, 0, 0.2));
-      break;
-    case 16:
-      out.push(B("trim", sx * 0.1, sy * 0.6, sz * 0.12, x, cy, cz, 0, 0, 0.7));
-      break;
-    case 17:
-      out.push(C("glow", 0.012, 0.016, sz * 0.3, 0, cy, zf, Math.PI / 2, 0, 0, segs));
-      break;
-    case 18:
-      out.push(B("sec", sx * 0.28, sy * 0.16, sz * 0.4, 0, yb, zf * 0.1));
-      break;
-    case 19:
-      out.push({ t: "octa", m: "metal", s: [Math.max(0.014, sx * 0.12), 0, 0], p: [x, yb, cz] });
-      break;
-    case 20:
-      out.push(B("dark", w * 0.4, h * 0.06, d * 0.2, 0, yt, cz));
-      out.push(B("acc", sx * 0.1, sy * 0.2, sz * 0.12, x, cy, zf));
-      break;
-    case 21:
-      out.push(C("joint", 0.012, 0.012, sy * 0.5, x, cy, cz, 0, 0, Math.PI / 2, segs));
-      break;
-    case 22:
-      out.push(B("trim", sx * 0.18, sy * 0.08, sz * 0.5, x * 0.4, yt, cz, 0.2, 0, 0));
-      break;
-    case 23:
-      out.push(N("metal", 0.006, 0.018, sy * 0.28, 0, yt, zf * 0.3));
-      break;
-    default:
-      out.push(B("sec", sx * 0.26, sy * 0.42, Math.max(0.018, d * 0.15), x, cy, zf * 0.32, 0, 0.18, 0));
+  const gt = Math.max(0.006, h * 0.03); // groove thickness
+  const gd = Math.max(0.006, d * 0.06); // groove depth (shallow, embedded)
+  const zf = cz + d * 0.5 - gd * 0.35; // flush with the front face
+  for (let i = 0; i < grooves; i++) {
+    const f = grooves === 1 ? 0.5 : i / (grooves - 1);
+    const yy = cy + (f - 0.5) * h * 0.66;
+    out.push(B("dark", w * 0.6, gt, gd, cx, yy, zf, 0, 0, 0));
+  }
+  // one vertical seam for the denser kits
+  if (r.density >= 7) {
+    out.push(B("dark", Math.max(0.006, w * 0.03), h * 0.5, gd, cx, cy, zf, 0, 0, 0));
   }
   return out;
 }

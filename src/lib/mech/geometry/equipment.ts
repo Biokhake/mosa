@@ -6,8 +6,11 @@ import {
   Sp,
   N,
   mass,
+  lume,
+  makeThrusterBell,
 } from "./primitives";
 import { ACC_IDS, EXTRA_LEGACY, MOD_IDS, WPN_IDS, WING_IDS } from "../catalog";
+import { generateKitDNA } from "./dna";
 
 export function pack(r: Recipe): Spec[] {
   const s = r.segs;
@@ -164,99 +167,79 @@ export function pack(r: Recipe): Spec[] {
 }
 
 export function thruster(r: Recipe): Spec[] {
-  const glow = r.curve > 0.5 ? 0.06 : 0.05;
+  const rad = r.curve > 0.5 ? 0.07 : 0.06;
   return [
-    C("metal", 0.06, 0.08, 0.16, 0, 0, 0, Math.PI / 2, 0, 0, r.segs),
-    C("glow", glow, glow + 0.01, 0.06, 0, 0, -0.1, Math.PI / 2, 0, 0, r.segs),
+    // mount block bolting to the socket
     B("prim", 0.08, 0.1, 0.08, 0, 0.04, 0.02),
+    // the bell + contained exhaust glow
+    ...makeThrusterBell("metal", rad, 0.15, 0, -0.03, 0, Math.PI / 2, 0, 0, r.segs),
   ];
 }
 
+/**
+ * Binder (back-mounted wing / thruster pod).
+ *
+ * Rebuilt so every segment is attached: a base mount plate that bolts to the
+ * back socket, one main arm that grows out of it, and any nozzle / light
+ * housed on that arm — nothing hanging in mid-air.
+ */
 export function binder(r: Recipe): Spec[] {
-  const k = (r.greeble * 5 + r.code.serial * 11) % 12;
   const s = r.segs;
-  const stretch = 0.75 + (r.code.serial % 6) * 0.1;
-  const lean = ((r.code.serial % 9) - 4) * 0.1;
-  const lift = ((r.greeble % 5) - 2) * 0.02;
-  switch (k) {
-    case 0:
-      return [
-        B("acc", 0.04, 0.1 + stretch * 0.12, 0.42 * stretch, 0, 0.04 + lift, -0.08, 0.55 + lean, 0.2, 0),
-        B("sec", 0.03, 0.08, 0.14, 0, 0.1, 0.04),
-        C("glow", 0.02, 0.025, 0.06, 0, -0.04, -0.22, Math.PI / 2, 0, 0, s),
-      ];
-    case 1:
-      return [
-        B("prim", 0.12 * stretch, 0.16, 0.1, 0, lift, 0),
-        C("glow", 0.035, 0.045, 0.14, 0, -0.08, -0.1, Math.PI / 2, 0, 0, s),
-        B("metal", 0.04, 0.1, 0.04, 0.06, 0.04, 0),
-      ];
-    case 2:
-      return [
-        C("prim", 0.05 * stretch, 0.04, 0.32 * stretch, 0, 0.02, -0.06, Math.PI / 2, 0.3 + lean, 0, s),
-        C("glow", 0.03, 0.04, 0.09, 0, 0, -0.24, Math.PI / 2, 0, 0, s),
-        B("trim", 0.07, 0.05, 0.07, 0, 0.06, 0.04),
-      ];
-    case 3:
-      return [
-        B("dark", 0.09, 0.08, 0.24 * stretch, 0, lift, 0),
-        Sp("glow", 0.04, 0.06, 0.07, -0.1, s),
-        Sp("glow", 0.04, -0.06, 0.07, -0.1, s),
-        B("acc", 0.03, 0.12, 0.03, 0, 0.1, 0),
-      ];
-    case 4:
-      return [
-        B("sec", 0.035, 0.1, 0.4 * stretch, 0, 0.08 + lift, -0.1, 0.75, 0.4 + lean, 0),
-        B("prim", 0.08, 0.07, 0.1, 0, 0, 0.05),
-        N("acc", 0.01, 0.03, 0.1, 0, 0.16, -0.16),
-      ];
-    case 5:
-      return [
-        B("prim", 0.12 * stretch, 0.035, 0.26, 0, 0.08 + lift, -0.04),
-        B("prim", 0.09, 0.035, 0.2, 0, 0.02, -0.02),
-        B("prim", 0.06, 0.035, 0.14, 0, -0.04, 0),
-        B("dark", 0.04, 0.08, 0.04, 0, 0.04, 0.08),
-      ];
-    case 6:
-      return [
-        C("metal", 0.045, 0.07, 0.22 * stretch, 0, lift, 0, Math.PI / 2, 0, 0, s),
-        C("glow", 0.04, 0.05, 0.08, 0, 0, -0.16, Math.PI / 2, 0, 0, s),
-        B("trim", 0.1, 0.05, 0.06, 0, 0.06, 0.05),
-        B("sec", 0.03, 0.12, 0.08, 0.06, 0.02, -0.04, 0, lean, 0),
-      ];
-    case 7:
-      return [
-        B("prim", 0.14 * stretch, 0.22, 0.04, 0, 0.05 + lift, 0, 0.25, 0, lean),
-        B("sec", 0.06, 0.12, 0.035, 0, 0.08, 0.03),
-        C("joint", 0.03, 0.03, 0.06, 0, -0.06, 0, 0, 0, Math.PI / 2, s),
-      ];
-    case 8:
-      return [
-        B("acc", 0.035, 0.18 * stretch, 0.12, 0.05, 0.05 + lift, -0.02, 0.45, 0.25 + lean, 0),
-        B("acc", 0.035, 0.18 * stretch, 0.12, -0.05, 0.05 + lift, -0.02, 0.45, -0.25 - lean, 0),
-        B("dark", 0.09, 0.07, 0.09, 0, 0, 0.02),
-        Sp("glow", 0.025, 0, 0.12, -0.08, s),
-      ];
-    case 9:
-      return [
-        C("prim", 0.07 * stretch, 0.07 * stretch, 0.18, 0, lift, 0, 0, 0, 0, 6),
-        B("trim", 0.12, 0.035, 0.12, 0, 0.1, 0),
-        N("metal", 0.008, 0.04, 0.12, 0, 0.16, 0),
-      ];
-    case 10:
-      return [
-        B("sec", 0.045, 0.22 * stretch, 0.16, 0.08, 0.03 + lift, -0.06, 0.25, 0.35 + lean, 0),
-        B("sec", 0.045, 0.22 * stretch, 0.16, -0.08, 0.03 + lift, -0.06, 0.25, -0.35 - lean, 0),
-        B("prim", 0.08, 0.08, 0.08, 0, 0, 0.02),
-      ];
-    default:
-      return [
-        B("metal", 0.035, 0.32 * stretch, 0.035, 0, 0.12 + lift, -0.05),
-        B("prim", 0.11, 0.09, 0.11, 0, 0, 0),
-        C("glow", 0.022, 0.03, 0.07, 0, 0.26, -0.08, Math.PI / 2, 0, 0, s),
-        B("acc", 0.05, 0.05, 0.16, 0, 0.04, -0.08, 0.5, lean, 0),
-      ];
+  const dna = generateKitDNA(r.code.id);
+  const kind = dna.hash % 5;
+  const len = 0.22 + ((dna.hash >>> 4) % 5) * 0.035;
+  const lean = ((r.code.serial % 7) - 3) * 0.05;
+  const out: Spec[] = [];
+
+  // BASE MOUNT — always present; this is the only thing touching the socket
+  out.push(
+    B("dark", 0.085, 0.15, 0.075, 0, 0, 0.015),
+    C("joint", 0.02, 0.02, 0.1, 0, 0.045, 0, 0, 0, Math.PI / 2, s),
+    B("metal", 0.05, 0.05, 0.05, 0, 0.045, -0.01),
+  );
+
+  if (kind === 0) {
+    // swept wing binder — spar rooted in the mount, skin + tip light on the spar
+    const rx = 0.3;
+    out.push(
+      B("prim", 0.05, len, 0.14, 0, len * 0.42, -0.02, rx, 0.12 + lean, 0),
+      B("sec", 0.035, len * 0.66, 0.09, 0.006, len * 0.5, -0.03, rx, 0.12 + lean, 0),
+      B("trim", 0.02, len * 0.3, 0.05, 0.01, len * 0.82, -0.01, rx, 0.12 + lean, 0),
+      ...lume("acc", 0.01, 0.03, 0.004, len * 0.86, -0.06, rx + Math.PI / 2, 0, 0, 8),
+    );
+  } else if (kind === 1) {
+    // twin thruster binder — a short arm with two housed bells at its end
+    out.push(
+      B("prim", 0.11, 0.12, 0.14, 0, 0.02, -0.06),
+      B("dark", 0.09, 0.09, 0.1, 0, -0.02, -0.14),
+      ...makeThrusterBell("metal", 0.04, 0.1, -0.045, -0.05, -0.18, 0.4, 0, 0, s),
+      ...makeThrusterBell("metal", 0.04, 0.1, 0.045, -0.05, -0.18, 0.4, 0, 0, s),
+    );
+  } else if (kind === 2) {
+    // shield binder — a flat armour panel bracketed off the mount
+    out.push(
+      B("metal", 0.03, 0.1, 0.06, 0.02, 0.06, -0.02, 0, 0, 0.3),
+      B("prim", 0.05, len * 1.1, 0.2, 0.06, len * 0.4, -0.04, 0.1, 0.18 + lean, 0),
+      B("sec", 0.03, len * 0.7, 0.13, 0.07, len * 0.45, -0.05, 0.1, 0.18 + lean, 0),
+    );
+  } else if (kind === 3) {
+    // fuel / propellant tank binder — a capsule tank clamped to the mount
+    out.push(
+      B("metal", 0.04, 0.06, 0.08, 0, 0.02, -0.05),
+      { t: "capsule", m: "prim", s: [0.06, len * 0.8, 0], p: [0, 0.02, -0.12], r: [0.5, 0, 0] },
+      C("trim", 0.062, 0.062, 0.02, 0, 0.12, -0.19, 0.5, 0, 0, s),
+      ...lume("glow", 0.014, 0.03, 0, -0.06, -0.05, Math.PI / 2, 0, 0, 8),
+    );
+  } else {
+    // sensor mast binder — a vertical mast off the mount with a housed emitter
+    out.push(
+      B("metal", 0.03, len * 0.9, 0.03, 0, len * 0.45, -0.02, 0.1, 0, lean),
+      B("prim", 0.06, 0.05, 0.06, 0, len * 0.85, -0.02, 0.1, 0, lean),
+      ...lume("acc", 0.016, 0.035, 0, len * 0.92, 0.004, 0, 0, 0, 8),
+    );
   }
+
+  return out;
 }
 
 export function stabilizer(r: Recipe): Spec[] {

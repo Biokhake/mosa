@@ -8,6 +8,7 @@ import {
   Capsule,
   Wedge,
   Trap,
+  lume,
   makeRotaryServo,
   makeStandoffArmor,
   makeCoolingFins,
@@ -244,10 +245,11 @@ export function brow(r: Recipe): Spec[] {
 /**
  * Eye L / Eye R (Optical Cameras / Multi-Spectral Lenses).
  */
-export function eye(r: Recipe, isLeft: boolean): Spec[] {
+export function eye(r: Recipe, _isLeft: boolean): Spec[] {
   const isCurved = r.quad === "RS" || r.quad === "RR";
   const style = faceStyle(r, 9, 5); // 0..4 — the eye "identity" of this unit
-  const sign = isLeft ? -1 : 1;
+  // Always built canonically; buildPart X-mirrors the eyeL slot so the pair
+  // is a true mirror instead of both leaning the same way.
   const out: Spec[] = [];
   const pitch = isCurved ? 0.3 : 0.25;
 
@@ -265,10 +267,10 @@ export function eye(r: Recipe, isLeft: boolean): Spec[] {
       B("glow", 0.036, 0.016, 0.016, 0, 0, 0.028, pitch, 0, 0),
     );
   } else if (style === 2) {
-    // narrow vertical combat slit
+    // narrow angled combat slit
     out.push(
-      B("dark", 0.022, 0.05, 0.026, 0, 0, 0.012, pitch, 0, sign * 0.12),
-      B("glow", 0.01, 0.04, 0.014, 0, 0, 0.028, pitch, 0, sign * 0.12),
+      B("dark", 0.022, 0.05, 0.026, 0, 0, 0.012, pitch, 0, 0.12),
+      B("glow", 0.01, 0.04, 0.014, 0, 0, 0.028, pitch, 0, 0.12),
     );
   } else if (style === 3) {
     // twin stacked micro-lenses
@@ -283,7 +285,7 @@ export function eye(r: Recipe, isLeft: boolean): Spec[] {
     out.push(
       C("dark", 0.024, 0.024, 0.028, 0, 0, 0.012, pitch, 0, 0, 6),
       C("glow", 0.015, 0.015, 0.016, 0, 0, 0.028, pitch, 0, 0, 6),
-      C("acc", 0.006, 0.006, 0.018, sign * 0.026, -0.016, 0.016, pitch, 0, 0, 6),
+      C("acc", 0.006, 0.006, 0.018, 0.026, -0.016, 0.016, pitch, 0, 0, 6),
     );
   }
 
@@ -374,7 +376,7 @@ export function jaw(r: Recipe): Spec[] {
 /**
  * Ear L / Ear R (Rotary Ear Servos & Comm Pods).
  */
-export function ear(r: Recipe, isLeft: boolean): Spec[] {
+export function ear(r: Recipe, _isLeft: boolean): Spec[] {
   const t = r.thick;
   const isCurved = r.quad === "RS" || r.quad === "RR";
   const out: Spec[] = [];
@@ -382,19 +384,18 @@ export function ear(r: Recipe, isLeft: boolean): Spec[] {
   const earRad = 0.042 * t;
   const earThick = 0.028;
 
+  // Built canonically (outboard = +X); buildPart mirrors the earL slot.
   if (isCurved) {
-    // RR/RS: Sleek rotary ear servo drum with circular acoustic mesh
     out.push(
       ...makeRotaryServo("joint", "metal", 0, 0, 0, earRad, earThick, 0, 0, Math.PI / 2, r.segs),
       Torus("trim", earRad * 0.85, 0.005, 0, 0, 0, 0, Math.PI / 2, 0),
     );
   } else {
-    // SS/SR: Tactical communications drum with knurled bezel and heat sink fins
     out.push(
       ...makeRotaryServo("dark", "metal", 0, 0, 0, earRad, earThick, 0, 0, Math.PI / 2, 8),
-      B("metal", 0.01, earRad * 1.6, earRad * 1.4, isLeft ? -earThick * 0.6 : earThick * 0.6, 0, 0),
-      // Miniature status LED
-      C("glow", 0.006, 0.006, 0.01, isLeft ? -earThick * 0.7 : earThick * 0.7, 0.02, 0, 0, 0, Math.PI / 2, 6),
+      B("metal", 0.01, earRad * 1.6, earRad * 1.4, earThick * 0.6, 0, 0),
+      // status LED, framed
+      ...lume("glow", 0.006, 0.012, earThick * 0.7, 0.02, 0, 0, 0, Math.PI / 2, 6),
     );
   }
 
@@ -473,26 +474,18 @@ export function vfin(r: Recipe): Spec[] {
 /**
  * Antenna L / Antenna R (Communications Mast).
  */
-export function antenna(r: Recipe, isLeft: boolean): Spec[] {
+export function antenna(r: Recipe, _isLeft: boolean): Spec[] {
   const isCurved = r.quad === "RS" || r.quad === "RR";
   const out: Spec[] = [];
 
-  const sign = isLeft ? -1 : 1;
-
+  // Canonical build (leans +X); buildPart mirrors the antennaL slot.
   if (isCurved) {
-    // RS/RR: Aerodynamic swept strake blade
-    out.push(
-      B("sec", 0.008, 0.14, 0.05, 0, 0.05, -0.01, 0.45, 0, sign * 0.3),
-    );
+    out.push(B("sec", 0.008, 0.14, 0.05, 0, 0.05, -0.01, 0.45, 0, 0.3));
   } else {
-    // SS/SR: Dual-taper tactical whip antenna with base loading coil
     out.push(
-      // Base mounting cylinder
       C("dark", 0.012, 0.014, 0.03, 0, 0, 0, 0, 0, 0, 8),
-      // Loading coil ring
       Torus("metal", 0.014, 0.004, 0, 0.015, 0),
-      // Tapered antenna rod
-      N("metal", 0.003, 0.007, 0.22, 0, 0.12, 0, 0.1, 0, sign * 0.18),
+      N("metal", 0.003, 0.007, 0.22, 0, 0.12, 0, 0.1, 0, 0.18),
     );
   }
 
@@ -502,26 +495,22 @@ export function antenna(r: Recipe, isLeft: boolean): Spec[] {
 /**
  * Cheek L / Cheek R (Side Cowls & Air Intakes).
  */
-export function cheek(r: Recipe, isLeft: boolean): Spec[] {
+export function cheek(r: Recipe, _isLeft: boolean): Spec[] {
   const t = r.thick;
   const isCurved = r.quad === "RS" || r.quad === "RR";
   const out: Spec[] = [];
 
-  const sign = isLeft ? -1 : 1;
-
+  // Canonical build; buildPart mirrors the cheekL slot.
   if (isCurved) {
-    // Smooth aerodynamic cheek cowl
     out.push(
-      Capsule("prim", 0.045 * t, 0.08, 0, 0, 0.01, 0.2, 0, sign * 0.15, r.segs),
-      // Recessed intake slit
-      B("dark", 0.01, 0.06, 0.03, sign * 0.02, 0, 0.02),
+      Capsule("prim", 0.045 * t, 0.08, 0, 0, 0.01, 0.2, 0, 0.15, r.segs),
+      B("dark", 0.01, 0.06, 0.03, 0.02, 0, 0.02),
     );
   } else {
-    // Heavy tactical cheek armor with radiator vents
     out.push(
-      B("prim", 0.045 * t, 0.09, 0.08, 0, 0, 0.02, 0.2, 0, sign * 0.2),
-      B("dark", 0.025 * t, 0.06, 0.05, sign * 0.015, 0, 0.03, 0.2, 0, sign * 0.2),
-      ...makeCoolingFins("metal", 0.02 * t, 0.05, 0.03, sign * 0.015, 0, 0.03, 3, "y"),
+      B("prim", 0.045 * t, 0.09, 0.08, 0, 0, 0.02, 0.2, 0, 0.2),
+      B("dark", 0.025 * t, 0.06, 0.05, 0.015, 0, 0.03, 0.2, 0, 0.2),
+      ...makeCoolingFins("metal", 0.02 * t, 0.05, 0.03, 0.015, 0, 0.03, 3, "y"),
     );
   }
 

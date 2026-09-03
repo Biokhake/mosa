@@ -328,6 +328,56 @@ export function mass(
 }
 
 /**
+ * A luminescent element that is never allowed to exist bare: a recessed dark
+ * bezel cup that houses the glow, so verniers / sensor lights / thruster cores
+ * always read as framed hardware, not a floating light in mid-air.
+ */
+export function lume(
+  glowMat: MatKey,
+  rad: number,
+  depth: number,
+  x = 0,
+  y = 0,
+  z = 0,
+  rx = 0,
+  ry = 0,
+  rz = 0,
+  seg = 10,
+): Spec[] {
+  return [
+    // recessed bezel cup — the frame the light sits in
+    C("dark", rad * 1.85, rad * 1.85, depth, x, y, z, rx, ry, rz, seg),
+    C("metal", rad * 1.4, rad * 1.4, depth * 0.55, x, y, z, rx, ry, rz, seg),
+    // the lens itself, only slightly proud of the cup
+    C(glowMat, rad, rad * 0.9, depth * 1.1, x, y, z, rx, ry, rz, seg),
+  ];
+}
+
+/**
+ * A thruster: a bell nozzle with the exhaust glow contained inside its mouth.
+ * `(x,y,z)` is the bell centre; the bell fires toward −local-Y before rotation.
+ */
+export function makeThrusterBell(
+  mBell: MatKey,
+  rad: number,
+  len: number,
+  x = 0,
+  y = 0,
+  z = 0,
+  rx = 0,
+  ry = 0,
+  rz = 0,
+  seg = 12,
+): Spec[] {
+  return [
+    C(mBell, rad * 0.7, rad, len, x, y, z, rx, ry, rz, seg),
+    C("joint", rad * 1.12, rad * 1.12, len * 0.22, x, y + len * 0.32, z, rx, ry, rz, seg),
+    // exhaust glow, sunk into the bell mouth
+    C("glow", rad * 0.72, rad * 0.5, len * 0.5, x, y - len * 0.18, z, rx, ry, rz, seg),
+  ];
+}
+
+/**
  * Realistic Linear Servo Actuator (Hydraulic / Electric Piston).
  * Generates an outer cylinder sleeve, an inner polished piston rod, collar rings,
  * and clevis mounting eyelets.
