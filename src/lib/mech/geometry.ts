@@ -57,6 +57,7 @@ import {
 } from "./geometry/equipment";
 
 import { createGeometryByID } from "./geometry/kitFactory";
+import { engineShin } from "./geometry/engineSlots";
 
 export type { Spec };
 
@@ -229,7 +230,7 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
       raw = knee(r, isLeft);
       break;
     case "shin":
-      raw = createGeometryByID(variant, slotId, isLeft, r);
+      raw = engineShin(variant);
       break;
     case "ankle":
       raw = ankle(r, isLeft);
