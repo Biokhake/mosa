@@ -3,6 +3,7 @@ import type { Spec } from "./types";
 import {
   B,
   C,
+  Sp,
   Torus,
   Wedge,
   Trap,
@@ -20,18 +21,14 @@ import { generateKitDNA } from "./dna";
  * Rotary neck bearing with twin cervical tilt pistons and cable grommet.
  */
 /**
- * Collar — the NECK ring only. Six shells: three angular (S-class), three
- * curved (R-class), picked by the kit's major axis + a DNA roll.
+ * Collar — a low protective RIM around the cervical column (which the Chest
+ * Core emits). Like the collar on most mecha: a ring or polygonal 3-D border
+ * that shields the neck frame / actuator axis. It does NOT reach up toward the
+ * head — every element stays below collar-local y +0.028 (world ~1.61), well
+ * under the skull, so head pitch / yaw / roll are never fouled.
  *
- * RANGE-OF-MOTION BUDGET (collar-local; the neck rises along +Y, +Z is front):
- *   - nothing solid within R 0.11 of the neck axis above y = +0.045
- *   - the front stays low (y <= 0) and shallow (z <= +0.085) so a lowered chin
- *     clears it
- *   - "popped" nape / side pieces are allowed, but only OUTBOARD (|x| >= 0.09)
- *     or BEHIND (z <= -0.04) and never above y = +0.05, so head pitch-back and
- *     yaw sweep past them
- * Every element below is inside that budget — the collar wraps the base of the
- * neck, it does not shroud the head.
+ * Six profiles: three angular (S-class), three curved (R-class), by the kit's
+ * major axis + a DNA roll. The column runs through collar-local (0, 0, +0.02).
  */
 export function collar(r: Recipe): Spec[] {
   const t = r.thick;
@@ -41,72 +38,67 @@ export function collar(r: Recipe): Spec[] {
   const style = dna.hash % 3;
   const curved = r.code.major === "R";
   const rimMat: "prim" = "prim";
-  const RB = -0.055; // rear-wrap Z: behind the neck axis
+  const CZ = 0.02; // the cervical column passes through here
 
-  // --- shared cervical mechanism (low, tucked) ---------------------------
-  out.push(...makeRotaryServo("joint", "metal", 0, -0.025, 0, 0.075 * t, 0.028, 0, 0, 0, s));
-  out.push(
-    ...makeServoActuator("dark", "metal", 0.042 * t, -0.025, -0.025, 0.045, 0.009, 0.2, 0, 0, 8),
-    ...makeServoActuator("dark", "metal", -0.042 * t, -0.025, -0.025, 0.045, 0.009, 0.2, 0, 0, 8),
-  );
-  // low base ring — top stays at y ~ +0.015, never in front of the chin
-  out.push(
-    curved
-      ? Torus("dark", 0.12 * t, 0.02, 0, -0.005, 0.006, Math.PI / 2, 0, 0, Math.max(16, s))
-      : C("dark", 0.125 * t, 0.135 * t, 0.04, 0, -0.005, 0.006, 0, 0, 0, Math.max(6, Math.min(10, s))),
-  );
+  // rear cable grommet — every collar has one, tucked low and behind
+  out.push(C("dark", 0.018 * t, 0.02 * t, 0.03, 0, -0.008, CZ - 0.06, Math.PI / 2, 0, 0, 8));
 
   if (!curved) {
-    // ================= S-CLASS (angular) =================
+    // ================= S-CLASS (angular border) =================
     if (style === 0) {
-      // S0 — standing block: a low faceted wrap around the back + sides
+      // S0 — octagonal collar ring
       out.push(
-        Trap(rimMat, 0.17 * t, 0.13 * t, 0.05, 0, 0.015, RB - 0.01, -0.75, 0, 0, 0.05),
-        B(rimMat, 0.045, 0.05, 0.11, 0.115 * t, 0.012, -0.02, 0, -0.5, 0.25),
-        B(rimMat, 0.045, 0.05, 0.11, -0.115 * t, 0.012, -0.02, 0, 0.5, -0.25),
+        C(rimMat, 0.09 * t, 0.095 * t, 0.05, 0, 0.002, CZ, 0, 0, 0, 8),
+        C("dark", 0.06 * t, 0.062 * t, 0.056, 0, 0.002, CZ, 0, 0, 0, 8),
       );
-      if (r.ornate) out.push(B("trim", 0.14 * t, 0.01, 0.05, 0, 0.04, RB - 0.02, -0.7, 0, 0));
-    } else if (style === 1) {
-      // S1 — split V: two angular blades at the sides, open front + back
-      for (const sgn of [-1, 1] as const) {
-        out.push(
-          Wedge(rimMat, 0.13 * t, 0.05, 0.06, sgn * 0.1 * t, 0.02, -0.03, -0.5, sgn * 0.8, 0),
-          B("dark", 0.026, 0.055, 0.045, sgn * 0.07 * t, -0.005, 0.0, 0, 0, sgn * 0.35),
-        );
+      for (const a of [0.25, 0.75, 1.25, 1.75]) {
+        out.push(C("metal", 0.012 * t, 0.012 * t, 0.052, Math.cos(a * Math.PI) * 0.088 * t, 0.002, CZ + Math.sin(a * Math.PI) * 0.088 * t, 0, 0, 0, 6));
       }
-      if (r.ornate) out.push(C("sec", 0.016, 0.016, 0.13 * t, 0, 0.0, RB, 0, 0, Math.PI / 2, 6));
-    } else {
-      // S2 — low gorget: chunky hex band + a short rear guard lip
+      if (r.ornate) out.push(Torus("trim", 0.096 * t, 0.008, 0, 0.02, CZ, Math.PI / 2, 0, 0, 8));
+    } else if (style === 1) {
+      // S1 — chunky hexagonal ring with a front notch
       out.push(
-        C(rimMat, 0.145 * t, 0.155 * t, 0.055, 0, 0.006, 0.004, 0, 0, 0, 8),
-        Wedge(rimMat, 0.13 * t, 0.045, 0.05, 0, 0.028, RB, -0.5, 0, 0),
+        C(rimMat, 0.095 * t, 0.1 * t, 0.055, 0, 0, CZ, 0, 0, 0, 6),
+        C("dark", 0.062 * t, 0.064 * t, 0.062, 0, 0, CZ, 0, 0, 0, 6),
+        B("dark", 0.04, 0.04, 0.03, 0, -0.006, CZ + 0.088 * t), // front notch
       );
-      if (r.ornate) out.push(B("trim", 0.18 * t, 0.009, 0.02, 0, 0.03, -0.005));
+      if (r.ornate) out.push(B("sec", 0.13 * t, 0.01, 0.02, 0, 0.024, CZ));
+    } else {
+      // S2 — square beveled frame: four short bars around the column
+      const bar = 0.11 * t;
+      for (const [dx, dz, rot] of [
+        [bar, 0, 0],
+        [-bar, 0, 0],
+        [0, bar, Math.PI / 2],
+        [0, -bar, Math.PI / 2],
+      ] as const) {
+        out.push(B(rimMat, 0.05, 0.048, 0.028 * t * 6, dx, 0, CZ + dz, 0, rot, 0));
+      }
+      if (r.ornate) for (const sgn of [-1, 1] as const) out.push(C("metal", 0.01, 0.01, 0.05, sgn * bar, 0.02, CZ, 0, 0, 0, 6));
     }
   } else {
-    // ================= R-CLASS (curved) =================
+    // ================= R-CLASS (curved border) =================
     if (style === 0) {
-      // R0 — rolled band: a low curved wrap, rolled-over lip, raised at the nape
+      // R0 — single torus ring
       out.push(
-        C(rimMat, 0.125 * t, 0.135 * t, 0.06, 0, 0.006, 0, 0, 0, 0, Math.max(16, s)),
-        Torus(rimMat, 0.125 * t, 0.024, 0, 0.03, 0, Math.PI / 2, 0, 0, Math.max(18, s)),
-        Capsule(rimMat, 0.05 * t, 0.16 * t, 0, 0.028, RB - 0.005, 0, 0, Math.PI / 2, Math.max(12, s)),
+        Torus(rimMat, 0.078 * t, 0.026, 0, 0.002, CZ, Math.PI / 2, 0, 0, Math.max(18, s)),
       );
-      if (r.ornate) out.push(Torus("trim", 0.13 * t, 0.01, 0, 0.006, 0, Math.PI / 2, 0, 0, Math.max(20, s)));
+      if (r.ornate) out.push(Torus("trim", 0.082 * t, 0.009, 0, 0.018, CZ, Math.PI / 2, 0, 0, Math.max(20, s)));
     } else if (style === 1) {
-      // R1 — shawl: a low rounded flare, wider + slightly raised at the back
+      // R1 — double stacked rings
       out.push(
-        C(rimMat, 0.15 * t, 0.125 * t, 0.05, 0, 0.01, -0.012, -0.18, 0, 0, Math.max(16, s)),
-        Capsule(rimMat, 0.055 * t, 0.2 * t, 0, 0.03, RB, 0, 0, Math.PI / 2, Math.max(12, s)),
+        Torus(rimMat, 0.076 * t, 0.019, 0, 0.014, CZ, Math.PI / 2, 0, 0, Math.max(18, s)),
+        Torus(rimMat, 0.082 * t, 0.019, 0, -0.014, CZ, Math.PI / 2, 0, 0, Math.max(18, s)),
       );
-      if (r.ornate) out.push(Torus("sec", 0.14 * t, 0.012, 0, 0.028, -0.02, Math.PI / 2 - 0.15, 0, 0, Math.max(18, s)));
+      if (r.ornate) out.push(C("sec", 0.05 * t, 0.05 * t, 0.006, 0, 0.026, CZ, 0, 0, 0, Math.max(16, s)));
     } else {
-      // R2 — soft ring: torus ring + a low rounded rear cowl
-      out.push(
-        Torus(rimMat, 0.125 * t, 0.03, 0, 0.006, 0.004, Math.PI / 2, 0, 0, Math.max(18, s)),
-        Capsule(rimMat, 0.05 * t, 0.17 * t, 0, 0.026, RB, 0, 0, Math.PI / 2, Math.max(12, s)),
-      );
-      if (r.ornate) out.push(Torus("trim", 0.13 * t, 0.008, 0, 0.03, 0.004, Math.PI / 2, 0, 0, Math.max(20, s)));
+      // R2 — fat torus with a beaded outer profile
+      out.push(Torus(rimMat, 0.072 * t, 0.03, 0, 0.002, CZ, Math.PI / 2, 0, 0, Math.max(18, s)));
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        out.push(Sp("metal", 0.014 * t, Math.cos(a) * 0.088 * t, 0.002, CZ + Math.sin(a) * 0.088 * t, 8));
+      }
+      if (r.ornate) out.push(Torus("trim", 0.078 * t, 0.007, 0, 0.02, CZ, Math.PI / 2, 0, 0, Math.max(20, s)));
     }
   }
 
@@ -162,6 +154,27 @@ export function chestCore(r: Recipe): Spec[] {
   );
   if (r.ornate) {
     out.push(B("sec", 0.24 * t, 0.12, 0.035, 0, 0.06, 0.12 + plateD * 0.55));
+  }
+
+  // --- Cervical column: the head↔chest connection frame ---------------------
+  // The skeleton had no neck mount. Other tools reproduce a plamo ball joint;
+  // here it is a 3-axis cylinder stack rising from the core:
+  //   yaw turntable (Y)  →  pitch trunnion (X)  →  roll coupling (Z)
+  // The Collar rim wraps the mid of this column. Runs local y +0.10 .. +0.25
+  // (world ~1.54 .. ~1.69), meeting the lowered head.
+  {
+    const nb = 0.1; // base Y (world ~1.54)
+    out.push(
+      // yaw turntable — rotates about the vertical
+      ...makeRotaryServo("joint", "metal", 0, nb, 0, 0.05 * t, 0.045, 0, 0, 0, Math.max(12, s)),
+      // lower cervical cylinder
+      C("dark", 0.032 * t, 0.036 * t, 0.09, 0, nb + 0.06, 0, 0, 0, 0, Math.max(10, s)),
+      // pitch trunnion — rotates about X (transverse)
+      ...makeRotaryServo("joint", "metal", 0, nb + 0.105, 0, 0.036 * t, 0.05, 0, 0, Math.PI / 2, Math.max(12, s)),
+      // upper cervical cylinder + roll coupling meeting the skull base
+      C("metal", 0.026 * t, 0.03 * t, 0.06, 0, nb + 0.15, 0, 0, 0, 0, Math.max(10, s)),
+      Torus("joint", 0.032 * t, 0.01, 0, nb + 0.175, 0, Math.PI / 2, 0, 0, Math.max(14, s)),
+    );
   }
 
   return out;

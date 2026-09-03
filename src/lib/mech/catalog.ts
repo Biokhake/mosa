@@ -240,33 +240,36 @@ function S(
 }
 
 export const SLOTS: SlotDef[] = [
-  S("helm", "head", "Helm", [0, 1.82, 0]),
-  S("visor", "head", "Visor", [0, 1.81, 0.065]),
-  S("brow", "head", "Brow", [0, 1.87, 0.06]),
-  S("eyeL", "head", "Eye L", [-0.048, 1.82, 0.07], { mirror: "eyeR" }),
-  S("eyeR", "head", "Eye R", [0.048, 1.82, 0.07], { mirror: "eyeL" }),
-  S("nose", "head", "Nose", [0, 1.79, 0.075]),
-  S("mouth", "head", "Mouth", [0, 1.745, 0.065]),
-  S("jaw", "head", "Jaw", [0, 1.69, 0.04]),
-  S("earL", "head", "Ear L", [-0.115, 1.81, 0], { optional: true, mirror: "earR" }),
-  S("earR", "head", "Ear R", [0.115, 1.81, 0], { optional: true, mirror: "earL" }),
-  S("vfin", "head", "Crest", [0, 1.91, 0.04]),
-  S("antennaL", "head", "Antenna L", [-0.08, 1.89, -0.01], {
+  // head lowered 0.03 in Y — shorter visual neck over the new cervical column
+  S("helm", "head", "Helm", [0, 1.79, 0]),
+  S("visor", "head", "Visor", [0, 1.78, 0.065]),
+  S("brow", "head", "Brow", [0, 1.84, 0.06]),
+  S("eyeL", "head", "Eye L", [-0.048, 1.79, 0.07], { mirror: "eyeR" }),
+  S("eyeR", "head", "Eye R", [0.048, 1.79, 0.07], { mirror: "eyeL" }),
+  S("nose", "head", "Nose", [0, 1.76, 0.075]),
+  S("mouth", "head", "Mouth", [0, 1.715, 0.065]),
+  S("jaw", "head", "Jaw", [0, 1.66, 0.04]),
+  S("earL", "head", "Ear L", [-0.115, 1.78, 0], { optional: true, mirror: "earR" }),
+  S("earR", "head", "Ear R", [0.115, 1.78, 0], { optional: true, mirror: "earL" }),
+  S("vfin", "head", "Crest", [0, 1.88, 0.04]),
+  S("antennaL", "head", "Antenna L", [-0.08, 1.86, -0.01], {
     optional: true,
     mirror: "antennaR",
   }),
-  S("antennaR", "head", "Antenna R", [0.08, 1.89, -0.01], {
+  S("antennaR", "head", "Antenna R", [0.08, 1.86, -0.01], {
     optional: true,
     mirror: "antennaL",
   }),
-  S("cheekL", "head", "Cheek L", [-0.095, 1.76, 0.035], { mirror: "cheekR" }),
-  S("cheekR", "head", "Cheek R", [0.095, 1.76, 0.035], { mirror: "cheekL" }),
-  S("chin", "head", "Chin Guard", [0, 1.71, 0.065]),
+  S("cheekL", "head", "Cheek L", [-0.095, 1.73, 0.035], { mirror: "cheekR" }),
+  S("cheekR", "head", "Cheek R", [0.095, 1.73, 0.035], { mirror: "cheekL" }),
+  S("chin", "head", "Chin Guard", [0, 1.68, 0.065]),
 
-  S("collar", "torso", "Collar", [0, 1.62, 0.02]),
+  // collar is a low protective RIM around the cervical column (emitted by
+  // chestCore); it sits down near the core, not up by the head
+  S("collar", "torso", "Collar", [0, 1.58, 0.02]),
   S("chestCore", "torso", "Chest Core", [0, 1.44, 0.04]),
-  S("chestR", "torso", "Chest R", [0.2, 1.47, 0.02], { mirror: "chestL" }),
-  S("chestL", "torso", "Chest L", [-0.2, 1.47, 0.02], { mirror: "chestR" }),
+  S("chestR", "torso", "Chest R", [0.2, 1.4, 0.02], { mirror: "chestL" }),
+  S("chestL", "torso", "Chest L", [-0.2, 1.4, 0.02], { mirror: "chestR" }),
   S("pecL", "torso", "Pec L", [-0.13, 1.46, 0.09], { mirror: "pecR" }),
   S("pecR", "torso", "Pec R", [0.13, 1.46, 0.09], { mirror: "pecL" }),
   S("cockpit", "torso", "Cockpit", [0, 1.40, 0.14]),
@@ -278,20 +281,20 @@ export const SLOTS: SlotDef[] = [
   S("skirtL", "waist", "Skirt L", [-0.16, 1.02, 0], { mirror: "skirtR" }),
   S("skirtR", "waist", "Skirt R", [0.16, 1.02, 0], { mirror: "skirtL" }),
 
-  // arm groups raised 0.05 in Y to stay level with the Chest R/L connection
-  S("shoulderR", "armR", "Shoulder R", [0.30, 1.53, 0], { mirror: "shoulderL" }),
-  S("upperR", "armR", "Upper R", [0.30, 1.33, 0], { mirror: "upperL" }),
-  S("elbowR", "armR", "Elbow R", [0.30, 1.15, 0], { mirror: "elbowL" }),
-  S("forearmR", "armR", "Forearm R", [0.30, 0.97, 0], { mirror: "forearmL" }),
-  S("vambraceR", "armR", "Vambrace R", [0.30, 0.95, 0.03], { mirror: "vambraceL" }),
-  S("handR", "armR", "Hand R", [0.30, 0.79, 0], { mirror: "handL" }),
+  // arm groups: back down to track the lowered chest / collar
+  S("shoulderR", "armR", "Shoulder R", [0.30, 1.46, 0], { mirror: "shoulderL" }),
+  S("upperR", "armR", "Upper R", [0.30, 1.26, 0], { mirror: "upperL" }),
+  S("elbowR", "armR", "Elbow R", [0.30, 1.08, 0], { mirror: "elbowL" }),
+  S("forearmR", "armR", "Forearm R", [0.30, 0.90, 0], { mirror: "forearmL" }),
+  S("vambraceR", "armR", "Vambrace R", [0.30, 0.88, 0.03], { mirror: "vambraceL" }),
+  S("handR", "armR", "Hand R", [0.30, 0.72, 0], { mirror: "handL" }),
 
-  S("shoulderL", "armL", "Shoulder L", [-0.30, 1.53, 0], { mirror: "shoulderR" }),
-  S("upperL", "armL", "Upper L", [-0.30, 1.33, 0], { mirror: "upperR" }),
-  S("elbowL", "armL", "Elbow L", [-0.30, 1.15, 0], { mirror: "elbowR" }),
-  S("forearmL", "armL", "Forearm L", [-0.30, 0.97, 0], { mirror: "forearmR" }),
-  S("vambraceL", "armL", "Vambrace L", [-0.30, 0.95, 0.03], { mirror: "vambraceR" }),
-  S("handL", "armL", "Hand L", [-0.30, 0.79, 0], { mirror: "handR" }),
+  S("shoulderL", "armL", "Shoulder L", [-0.30, 1.46, 0], { mirror: "shoulderR" }),
+  S("upperL", "armL", "Upper L", [-0.30, 1.26, 0], { mirror: "upperR" }),
+  S("elbowL", "armL", "Elbow L", [-0.30, 1.08, 0], { mirror: "elbowR" }),
+  S("forearmL", "armL", "Forearm L", [-0.30, 0.90, 0], { mirror: "forearmR" }),
+  S("vambraceL", "armL", "Vambrace L", [-0.30, 0.88, 0.03], { mirror: "vambraceR" }),
+  S("handL", "armL", "Hand L", [-0.30, 0.72, 0], { mirror: "handR" }),
 
   S("hipR", "legR", "Hip R", [0.14, 0.98, 0], { mirror: "hipL" }),
   S("thighR", "legR", "Thigh R", [0.14, 0.76, 0], { mirror: "thighL" }),
