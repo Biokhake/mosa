@@ -120,6 +120,29 @@ export interface Hardpoint {
   rating: number;
 }
 
+/** One bone in the whole-body kinematic tree. */
+export interface Bone {
+  id: string;
+  parent: string | null;
+  /** origin (this bone's proximal joint) in the PARENT bone's local frame */
+  origin: [number, number, number];
+  /** segment length along its primary axis */
+  length: number;
+  /** nominal girth */
+  girth: number;
+  /** primary axis direction in this bone's local frame (usually -Y) */
+  axis: [number, number, number];
+  /** true for the mirror (left) copy of a paired limb */
+  mirrored: boolean;
+}
+
+/** A joint in the whole-body tree — connects `parentBone` to `bone`. */
+export interface RigJoint extends Joint {
+  bone: string;
+  parentBone: string;
+  dof: "hinge" | "universal" | "ball";
+}
+
 /** The bounded, DISCRETE design intent. Diversity lives here, not in a hash. */
 export interface Brief {
   /** stable id for determinism; not the kit ID */
@@ -209,6 +232,33 @@ export interface LoadReport {
   armourAllowance: number;
   /** total moved mass this part's proximal joint carries */
   carriedMass: number;
+}
+
+/** The whole-body structural solution — every joint, every bone. */
+export interface BodyLoad {
+  /** relative total body weight */
+  bodyWeight: number;
+  /** per-bone relative mass (structure + armour shell) */
+  boneMass: Record<string, number>;
+  /** per-joint required torque (relative, after dynamic + safety) */
+  jointTorque: Record<string, number>;
+  /** per-joint actuator, sized from its torque */
+  actuator: Record<string, ActuatorSpec>;
+  /** per-bone structural member spec (rails / beams) */
+  member: Record<string, MemberSpec>;
+  /** per-bone armour bulk allowance (governs shell girth/depth) */
+  armour: Record<string, number>;
+}
+
+/** The whole-body kinematic + structural rig. */
+export interface Rig {
+  brief: Brief;
+  bones: Record<string, Bone>;
+  joints: Record<string, RigJoint>;
+  hardpoints: Hardpoint[];
+  /** rest position of each bone's origin in body space */
+  restPos: Record<string, [number, number, number]>;
+  load: BodyLoad;
 }
 
 export interface FunctionalReport {

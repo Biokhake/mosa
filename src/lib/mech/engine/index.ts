@@ -20,41 +20,45 @@
 
 import { makeBrief, briefFromLegacyId } from "./brief";
 import { resolveProportions } from "./proportions";
-import { buildShinRig } from "./skeleton";
+import { buildRig, shinView } from "./skeleton";
 import { grammarShin } from "./grammar/shin";
 import { romSweepShin } from "./mechanics/romSweep";
 import { massReportShin } from "./mechanics/mass";
-import { solveShinLoad } from "./mechanics/loadSolver";
 import { measureMetrics, classifyBand } from "./classify";
-import type { Brief, KitArtifact, SlotArtifact, SlotId } from "./types";
+import type { Brief, KitArtifact, SlotArtifact, SlotId, Rig } from "./types";
 
 export * from "./types";
 export { makeBrief, briefFromLegacyId, PHILOSOPHIES } from "./brief";
 export { measureMetrics, classifyBand, classifyBand as _classifyBand, assignId, bandLetters } from "./classify";
 export { PHILOSOPHIES as DESIGN_PHILOSOPHIES } from "./brief";
 
-/** Design a single slot from a brief. Phase 1 implements `shin`. */
-export function designSlot(slot: SlotId, brief: Brief): SlotArtifact | null {
+/** Design a single slot from a brief, given an already-built whole-body rig. */
+export function designSlotWithRig(slot: SlotId, brief: Brief, rig: Rig): SlotArtifact | null {
   const prop = resolveProportions(brief);
 
   if (slot === "shin") {
-    const load = solveShinLoad(brief, prop);
-    const rig = buildShinRig(brief, prop, load);
-    const prims = grammarShin(brief, prop, rig);
-    const rom = romSweepShin(prims, rig);
-    const mass = massReportShin(prims, rig);
+    const view = shinView(rig, "R");
+    const prims = grammarShin(brief, prop, view);
+    const rom = romSweepShin(prims, view);
+    const mass = massReportShin(prims, view);
     return {
       slot,
       prims,
-      joints: rig.joints,
-      hardpoints: rig.hardpoints,
+      joints: view.joints,
+      hardpoints: view.hardpoints,
       functional: {
         romOk: rom.ok,
         romCollisions: rom.collisions,
         jointMoment: mass.jointMoment,
         mass: mass.mass,
         com: mass.com,
-        load,
+        load: {
+          jointTorque: view.load.jointTorque,
+          actuator: view.load.actuator,
+          rails: view.load.rails,
+          armourAllowance: view.load.armourAllowance,
+          carriedMass: view.load.carriedMass,
+        },
       },
     };
   }
@@ -62,10 +66,22 @@ export function designSlot(slot: SlotId, brief: Brief): SlotArtifact | null {
   return null; // other slots still use the legacy generators for now
 }
 
-/** Design a whole kit from a brief (Phase 1: only `shin` is populated). */
+/** Design a single slot from a brief. Builds a fresh whole-body rig. */
+export function designSlot(slot: SlotId, brief: Brief): SlotArtifact | null {
+  const rig = buildRig(brief, resolveProportions(brief));
+  return designSlotWithRig(slot, brief, rig);
+}
+
+/** Build the whole-body rig for a brief (exposed for tools / inspection). */
+export function designRig(brief: Brief): Rig {
+  return buildRig(brief, resolveProportions(brief));
+}
+
+/** Design a whole kit from a brief (Phase 3a: `shin` populated, rig for all). */
 export function designKit(brief: Brief): KitArtifact {
+  const rig = buildRig(brief, resolveProportions(brief));
   const slots: KitArtifact["slots"] = {};
-  const shin = designSlot("shin", brief);
+  const shin = designSlotWithRig("shin", brief, rig);
   if (shin) slots.shin = shin;
 
   const allPrims = Object.values(slots).flatMap((s) => s!.prims);
