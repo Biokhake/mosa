@@ -20,10 +20,11 @@
 
 import { makeBrief, briefFromLegacyId } from "./brief";
 import { resolveProportions } from "./proportions";
-import { buildRig, shinView } from "./skeleton";
+import { buildRig, shinView, thighView } from "./skeleton";
 import { grammarShin } from "./grammar/shin";
-import { romSweepShin } from "./mechanics/romSweep";
-import { massReportShin } from "./mechanics/mass";
+import { grammarThigh } from "./grammar/thigh";
+import { romSweepShin, romSweepThigh } from "./mechanics/romSweep";
+import { massReportShin, massReportLimb } from "./mechanics/mass";
 import { measureMetrics, classifyBand } from "./classify";
 import type { Brief, KitArtifact, SlotArtifact, SlotId, Rig } from "./types";
 
@@ -41,6 +42,33 @@ export function designSlotWithRig(slot: SlotId, brief: Brief, rig: Rig): SlotArt
     const prims = grammarShin(brief, prop, view);
     const rom = romSweepShin(prims, view);
     const mass = massReportShin(prims, view);
+    return {
+      slot,
+      prims,
+      joints: view.joints,
+      hardpoints: view.hardpoints,
+      functional: {
+        romOk: rom.ok,
+        romCollisions: rom.collisions,
+        jointMoment: mass.jointMoment,
+        mass: mass.mass,
+        com: mass.com,
+        load: {
+          jointTorque: view.load.jointTorque,
+          actuator: view.load.actuator,
+          rails: view.load.rails,
+          armourAllowance: view.load.armourAllowance,
+          carriedMass: view.load.carriedMass,
+        },
+      },
+    };
+  }
+
+  if (slot === "thigh") {
+    const view = thighView(rig, "R");
+    const prims = grammarThigh(brief, prop, view);
+    const rom = romSweepThigh(prims, view);
+    const mass = massReportLimb(prims, view.joints);
     return {
       slot,
       prims,
@@ -83,6 +111,8 @@ export function designKit(brief: Brief): KitArtifact {
   const slots: KitArtifact["slots"] = {};
   const shin = designSlotWithRig("shin", brief, rig);
   if (shin) slots.shin = shin;
+  const thigh = designSlotWithRig("thigh", brief, rig);
+  if (thigh) slots.thigh = thigh;
 
   const allPrims = Object.values(slots).flatMap((s) => s!.prims);
   const metrics = measureMetrics(allPrims);

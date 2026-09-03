@@ -37,7 +37,6 @@ import {
   upper,
   forearm,
   hand,
-  thigh,
 } from "./geometry/limbs";
 
 import {
@@ -57,7 +56,7 @@ import {
 } from "./geometry/equipment";
 
 import { createGeometryByID } from "./geometry/kitFactory";
-import { engineShin } from "./geometry/engineSlots";
+import { engineShin, engineThigh } from "./geometry/engineSlots";
 
 export type { Spec };
 
@@ -224,7 +223,7 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
       raw = hip(r, isLeft);
       break;
     case "thigh":
-      raw = thigh(r, isLeft);
+      raw = engineThigh(variant);
       break;
     case "knee":
       raw = knee(r, isLeft);

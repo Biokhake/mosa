@@ -11,9 +11,12 @@
  * Every protrusion is rooted to its parent with a fillet collar.
  */
 
-import { makeRng, lerp, clamp } from "../rng";
-import type { Brief, Proportions, Prim, PrimKind } from "../types";
+import { makeRng, lerp } from "../rng";
+import type { Brief, Proportions, Prim } from "../types";
 import type { ShinRig } from "../skeleton";
+import { pickLimbTopology } from "./topology";
+import type { LimbTopology } from "./topology";
+import { buildLimbArmour } from "./limbArmour";
 
 const HALF_PI = Math.PI / 2;
 
@@ -22,13 +25,8 @@ interface Ctx {
   prop: Proportions;
   rig: ShinRig;
   rng: ReturnType<typeof makeRng>;
+  topology: LimbTopology;
   out: Prim[];
-}
-
-/** Greave primitive kind for the band. */
-function greaveKind(brief: Brief): PrimKind {
-  if (brief.silhouette === "S") return brief.edge === "S" ? "trapPrism" : "box";
-  return brief.edge === "S" ? "cyl" : "capsule";
 }
 
 function frameLayer(ctx: Ctx) {
@@ -123,7 +121,7 @@ interface Greave {
 }
 
 function greaveMass(ctx: Ctx): Greave {
-  const { rig, brief, prop, out } = ctx;
+  const { rig, brief, prop, out, topology } = ctx;
 
   const topY = rig.kneeY - rig.girth * 0.12;
   const botY = rig.ankleY + rig.ankleClearance; // functional clearance, not arbitrary
@@ -136,73 +134,20 @@ function greaveMass(ctx: Ctx): Greave {
   const wTop = rig.girth * bulk * lerp(1.0, 1.12, brief.taper * 0.5);
   const wBot = rig.girth * bulk * lerp(0.9, 0.62, brief.taper);
   const depth = rig.girth * bulk * lerp(0.9, 1.06, 0.5);
-  const frontZ = depth * 0.5;
-  const kind = greaveKind(brief);
 
-  if (kind === "trapPrism") {
-    out.push({
-      kind,
-      role: "armorA",
-      size: [wTop * 0.9, wBot, h],
-      pos: [0, cy, depth * 0.06],
-      rot: [-0.08, 0, 0],
-      depth,
-      tier: "mass",
-      zone: "armor",
-      bevel: prop.bevel,
-    });
-  } else if (kind === "box") {
-    // two-section box: the SR "filleted" read — corners clearly rounded
-    const bv = Math.max(0.65, prop.bevel);
-    out.push(
-      {
-        kind: "box",
-        role: "armorA",
-        size: [wTop, h * 0.58, depth],
-        pos: [0, cy + h * 0.2, 0],
-        rot: [-0.08, 0, 0],
-        tier: "mass",
-        zone: "armor",
-        bevel: bv,
-      },
-      {
-        kind: "box",
-        role: "armorA",
-        size: [wBot, h * 0.48, depth * 0.96],
-        pos: [0, cy - h * 0.26, depth * 0.02],
-        rot: [-0.08, 0, 0],
-        tier: "mass",
-        zone: "armor",
-        bevel: bv,
-      },
-    );
-  } else if (kind === "cyl") {
-    out.push({
-      kind: "cyl",
-      role: "armorA",
-      size: [wTop * 0.5, wBot * 0.5, h],
-      pos: [0, cy, depth * 0.08],
-      rot: [-0.08, 0, 0],
-      sides: 16,
-      tier: "mass",
-      zone: "armor",
-      bevel: prop.bevel,
-    });
-  } else {
-    out.push({
-      kind: "capsule",
-      role: "armorA",
-      size: [wTop * 0.5, h * 0.66, 0],
-      pos: [0, cy, depth * 0.06],
-      rot: [-0.08, 0, 0],
-      sides: 20,
-      tier: "mass",
-      zone: "armor",
-      bevel: 1,
-    });
-  }
+  // the TOPOLOGY decides how those dimensions are arranged into masses —
+  // one shell, tiered plates, a split with side wings, a clamshell seam,
+  // a keel spine, or stacked segments.
+  const res = buildLimbArmour(topology, {
+    brief,
+    env: { cy, h, wTop, wBot, depth, pitch: -0.08 },
+    bevel: prop.bevel,
+    matA: "armorA",
+    matB: "armorB",
+  });
+  out.push(...res.prims);
 
-  return { topY, botY, h, cy, wTop, wBot, depth, frontZ };
+  return { topY, botY, h, cy, wTop, wBot, depth, frontZ: res.frontZ };
 }
 
 /** A fillet collar so a protrusion never sprouts from a bare face. */
@@ -278,7 +223,10 @@ function kneeGuard(ctx: Ctx, g: Greave) {
 }
 
 function calfPod(ctx: Ctx, g: Greave) {
-  const { brief, rig, out } = ctx;
+  const { brief, rig, out, topology } = ctx;
+  // clamshell / spine / segmented already resolve the rear of the greave —
+  // a bolt-on pod on top of them just re-clutters the calf.
+  if (topology === "clamshell" || topology === "spine" || topology === "segmented") return;
   if (brief.decoration < 0.45 && brief.role !== "artillery" && brief.role !== "support") return;
   const round = brief.silhouette === "R";
   // sit LOW on the calf (well clear of the knee pivot) and don't reach far back
@@ -298,27 +246,6 @@ function calfPod(ctx: Ctx, g: Greave) {
     zone: "vent",
     bevel: round ? 0.6 : ctx.prop.bevel,
   });
-}
-
-/** Panel lines — dark inset grooves cut across the greave, following its taper. */
-function panelCuts(ctx: Ctx, g: Greave) {
-  const { brief, out } = ctx;
-  const n = Math.round(clamp(brief.decoration * 3.2, 0, 3));
-  for (let i = 0; i < n; i++) {
-    const f = (i + 1) / (n + 1);
-    const y = g.topY - f * g.h;
-    const w = lerp(g.wTop, g.wBot, f) * 0.72;
-    out.push({
-      kind: "box",
-      role: "mechanism",
-      size: [w, Math.max(0.004, g.h * 0.018), g.depth * 0.06],
-      pos: [0, y, g.frontZ - g.depth * 0.02],
-      rot: [-0.08, 0, 0],
-      tier: "panel",
-      zone: "armor",
-      bevel: 0,
-    });
-  }
 }
 
 /** Detail budget: L=4, M=2, S=1 points. Spend, then stop. Joint/Vent zones only. */
@@ -407,12 +334,14 @@ function details(ctx: Ctx, g: Greave) {
 }
 
 export function grammarShin(brief: Brief, prop: Proportions, rig: ShinRig): Prim[] {
-  const ctx: Ctx = { brief, prop, rig, rng: makeRng(`shin:${brief.seed}`), out: [] };
+  const rng = makeRng(`shin:${brief.seed}`);
+  // the topology is a LEG-level decision so the thigh matches the shin.
+  const topology = pickLimbTopology(brief, makeRng(`leg:${brief.seed}`));
+  const ctx: Ctx = { brief, prop, rig, rng, topology, out: [] };
   frameLayer(ctx);
   const g = greaveMass(ctx);
   kneeGuard(ctx, g);
   calfPod(ctx, g);
-  panelCuts(ctx, g);
   details(ctx, g);
   return ctx.out;
 }

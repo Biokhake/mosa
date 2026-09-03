@@ -13,12 +13,20 @@ import { primsToSpecs } from "../engine/adapters/toMechSpec";
 
 const cache = new Map<string, Spec[]>();
 
-export function engineShin(id: string): Spec[] {
-  const key = (id || "SSA-001").toUpperCase();
+function engineSlot(slot: "shin" | "thigh", id: string): Spec[] {
+  const key = `${slot}:${(id || "SSA-001").toUpperCase()}`;
   const hit = cache.get(key);
   if (hit) return hit;
-  const art = designSlotFromLegacyId("shin", key);
+  const art = designSlotFromLegacyId(slot, (id || "SSA-001").toUpperCase());
   const specs = art && art.prims.length ? primsToSpecs(art.prims) : [B("prim", 0.12, 0.24, 0.1, 0, 0, 0)];
   cache.set(key, specs);
   return specs;
+}
+
+export function engineShin(id: string): Spec[] {
+  return engineSlot("shin", id);
+}
+
+export function engineThigh(id: string): Spec[] {
+  return engineSlot("thigh", id);
 }

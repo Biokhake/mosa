@@ -4,7 +4,7 @@
  * real N·m waits on a material + actuator catalogue.
  */
 
-import type { MatRole, Prim } from "../types";
+import type { Joint, MatRole, Prim } from "../types";
 import type { ShinRig } from "../skeleton";
 
 /** Relative density by material role. */
@@ -52,6 +52,11 @@ export interface MassReport {
 }
 
 export function massReportShin(prims: Prim[], rig: ShinRig): MassReport {
+  return massReportLimb(prims, rig.joints);
+}
+
+/** Generic limb mass model — any part that exposes a list of local joints. */
+export function massReportLimb(prims: Prim[], joints: Joint[]): MassReport {
   let m = 0;
   const c: [number, number, number] = [0, 0, 0];
   const items = prims.map((p) => {
@@ -70,7 +75,7 @@ export function massReportShin(prims: Prim[], rig: ShinRig): MassReport {
 
   // moment about each joint = Σ mass below-the-joint * lever arm
   const jointMoment: Record<string, number> = {};
-  for (const j of rig.joints) {
+  for (const j of joints) {
     let moment = 0;
     for (const it of items) {
       if (it.y < j.pivot[1]) moment += it.w * (j.pivot[1] - it.y);

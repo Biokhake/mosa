@@ -9,7 +9,7 @@
  */
 
 import type { Prim } from "../types";
-import type { ShinRig } from "../skeleton";
+import type { ShinRig, ThighRig } from "../skeleton";
 
 type AABB = { min: [number, number, number]; max: [number, number, number] };
 
@@ -148,6 +148,51 @@ export function romSweepShin(prims: Prim[], rig: ShinRig): RomResult {
         collisions.push(`knee flex ${flex.toFixed(2)}: calf pod fouls thigh`);
         break;
       }
+    }
+  }
+
+  return { ok: collisions.length === 0, collisions };
+}
+
+/**
+ * Thigh functional check.
+ *
+ * The thigh sits between two joints it does not own the far side of, so a
+ * dynamic sweep against invented neighbour stand-ins is mostly noise. What the
+ * grammar actually controls is the armour ENVELOPE: it must clear both pivots
+ * so the hip and knee can reach their rated angles, and its lower-rear corner
+ * must taper in so the shin can fold behind it. Those are checked statically.
+ */
+export function romSweepThigh(prims: Prim[], rig: ThighRig): RomResult {
+  const collisions: string[] = [];
+  const armour = prims
+    .filter((p) => (p.tier === "mass" || p.tier === "panel") && p.zone === "armor")
+    .map(primAABB);
+
+  const slack = rig.girth * 0.06;
+  // knee flexion needs the shin to swing up behind the thigh: the rear of the
+  // thigh's lower third must sit inboard of the knee drum line.
+  const kneeLine = rig.kneeY + rig.kneeClearance - slack;
+  const rearLimit = -rig.girth * 0.62;
+  for (const b of armour) {
+    if (b.min[1] < kneeLine - slack) {
+      collisions.push(`knee: armour dips past the knee pivot (y ${b.min[1].toFixed(3)} < ${kneeLine.toFixed(3)})`);
+      break;
+    }
+  }
+  for (const b of armour) {
+    if (b.min[1] < rig.kneeY + rig.length * 0.28 && b.min[2] < rearLimit) {
+      collisions.push(`knee flex: lower-rear armour blocks the shin fold (z ${b.min[2].toFixed(3)})`);
+      break;
+    }
+  }
+  // hip flexion needs the thigh's top to stay below the pelvis: no armour above
+  // the hip pivot line.
+  const hipLine = rig.hipY - slack;
+  for (const b of armour) {
+    if (b.max[1] > hipLine + slack) {
+      collisions.push(`hip: armour rises above the hip pivot (y ${b.max[1].toFixed(3)} > ${hipLine.toFixed(3)})`);
+      break;
     }
   }
 

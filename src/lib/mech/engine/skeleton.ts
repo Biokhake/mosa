@@ -201,4 +201,68 @@ export function shinView(rig: Rig, side: "R" | "L" = "R"): ShinRig {
   };
 }
 
+export interface ThighRig {
+  length: number;
+  girth: number;
+  hipY: number;
+  kneeY: number;
+  /** how far the thigh's lower armour must stop clear of the knee pivot */
+  kneeClearance: number;
+  load: {
+    jointTorque: Record<string, number>;
+    actuator: Rig["load"]["actuator"];
+    rails: Rig["load"]["member"][string];
+    armourAllowance: number;
+    carriedMass: number;
+  };
+  joints: import("./types").Joint[];
+  hardpoints: Hardpoint[];
+}
+
+/** A thigh, framed at its own centre (hip at +L/2, knee at -L/2). */
+export function thighView(rig: Rig, side: "R" | "L" = "R"): ThighRig {
+  const bone = rig.bones[`thigh${side}`]!;
+  const length = bone.length;
+  const girth = bone.girth;
+  const hipY = length * 0.5;
+  const kneeY = -length * 0.5;
+
+  const hd = rig.load.actuator[`hip${side}`]!;
+  const kd = rig.load.actuator[`knee${side}`]!;
+  const kneeClearance = kd.drumRadius * 1.1 + length * 0.14;
+
+  const hipJ = rig.joints[`hip${side}`]!;
+  const kneeMax = rig.joints[`knee${side}`]!.range[1];
+
+  return {
+    length,
+    girth,
+    hipY,
+    kneeY,
+    kneeClearance,
+    load: {
+      jointTorque: {
+        hip: rig.load.jointTorque[`hip${side}`]!,
+        knee: rig.load.jointTorque[`knee${side}`]!,
+      },
+      actuator: {
+        hip: hd,
+        knee: kd,
+        flexor: rig.load.actuator[`knee${side}-flexor`] ?? kd,
+      },
+      rails: rig.load.member[`thigh${side}`]!,
+      armourAllowance: rig.load.armour[`thigh${side}`]!,
+      carriedMass:
+        rig.load.boneMass[`thigh${side}`]! +
+        rig.load.boneMass[`shin${side}`]! +
+        rig.load.boneMass[`foot${side}`]!,
+    },
+    joints: [
+      { id: "hip", pivot: [0, hipY, 0], axis: [1, 0, 0], range: hipJ.range, neutral: 0 },
+      { id: "knee", pivot: [0, kneeY, -girth * 0.15], axis: [1, 0, 0], range: [-0.05, kneeMax], neutral: 0 },
+    ],
+    hardpoints: [],
+  };
+}
+
 export { HALF_PI, clamp };
