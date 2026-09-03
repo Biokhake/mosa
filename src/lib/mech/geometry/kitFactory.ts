@@ -5,12 +5,15 @@ import {
   B,
   C,
   N,
-  Sp,
   Wedge,
   Trap,
   Cowl,
   Octa,
+  Capsule,
   base,
+  makeRotaryServo,
+  makeServoActuator,
+  makeCoolingFins,
 } from "./primitives";
 import { generateKitDNA, SHAPE, type KitDNA, type ShapeId } from "./dna";
 
@@ -97,17 +100,19 @@ function shp(
     case SHAPE.HEX:
       return C(mat, r, r, d, x, y, z, Math.PI / 2, yaw, 0, 6);
     case SHAPE.CYL:
-      return C(mat, r, r * 0.94, d, x, y, z, Math.PI / 2, yaw, 0, 16);
+      return C(mat, r, r * 0.94, d, x, y, z, Math.PI / 2, yaw, 0, 20);
     case SHAPE.TRAP:
       return Trap(mat, w * 0.76, w, h, x, y, z, 0, yaw, 0, d);
     case SHAPE.DOME:
-      return Sp(mat, Math.max(w, h, d) / 2, x, y, z + d * 0.1, 16);
+      return { t: "hemi", m: mat, s: [Math.max(w, h) / 2, 0, 0], p: [x, y, z - d * 0.2], r: [-0.15, yaw, 0] };
     case SHAPE.CONE:
-      return N(mat, Math.max(0.004, w * 0.12), w / 2, Math.max(h, d), x, y, z, -Math.PI / 2, 0, yaw);
+      return N(mat, Math.max(0.004, w * 0.12), w / 2, Math.max(h * 0.7, d), x, y, z, -Math.PI / 2, 0, yaw);
     case SHAPE.OCTA:
       return Octa(mat, Math.max(w, h) / 2, x, y, z);
     case SHAPE.WEDGE:
       return Wedge(mat, w, h, d, x, y, z, 0, yaw, 0);
+    case SHAPE.CAPSULE:
+      return { t: "capsule", m: mat, s: [Math.min(w, h) * 0.5, Math.max(w, h) * 0.7, 0], p: [x, y, z], r: [0, yaw, w > h ? Math.PI / 2 : 0] };
     default:
       return B(mat, w, h, d, x, y, z, 0, yaw, 0);
   }
@@ -295,53 +300,136 @@ export function buildLayeredShoulder(kit: ParsedKit, t: number, s: number, detai
 }
 
 /**
+ * Band-legal greave shell for the shin.
+ *   SS  sharp trapezoid / wedge
+ *   SR  filleted box (buildPart auto-rounds SR box corners)
+ *   RS  curved cylinder
+ *   RR  curved capsule
+ * DNA `profile` sets taper-in / flare-out / straight / front-wedge.
+ */
+function greaveShell(
+  kit: ParsedKit,
+  w: number,
+  h: number,
+  d: number,
+  cy: number,
+  mat: MatKey,
+  seg: number,
+): Spec[] {
+  const { quad, dna } = kit;
+  const profile = dna.hash % 4;
+  const pitch = -0.1;
+
+  if (quad === "SS") {
+    if (profile === 3) return [Wedge(mat, w, h, d * 1.2, 0, cy, d * 0.14, pitch, 0, 0)];
+    const wt = profile === 0 ? w * 0.62 : profile === 1 ? w : w * 0.9;
+    const wb = profile === 0 ? w : profile === 1 ? w * 0.62 : w * 0.98;
+    return [Trap(mat, wt, wb, h, 0, cy, 0, pitch, 0, 0, d)];
+  }
+  if (quad === "SR") {
+    const lo = profile === 0 ? 0.76 : profile === 1 ? 1.16 : 0.95;
+    return [
+      B(mat, w, h * 0.6, d, 0, cy + h * 0.2, 0, pitch, 0, 0),
+      B(mat, w * lo, h * 0.46, d * 0.95, 0, cy - h * 0.26, 0.004, pitch, 0, 0),
+    ];
+  }
+  // RS / RR — curved
+  if (quad === "RR") {
+    return [Capsule(mat, w * 0.5, h * 0.62, 0, cy, 0.01, pitch, 0, 0, Math.max(16, seg))];
+  }
+  const rt = profile === 1 ? w * 0.4 : w * 0.52;
+  const rb = profile === 0 ? w * 0.34 : profile === 1 ? w * 0.58 : w * 0.48;
+  return [C(mat, rt, rb, h, 0, cy, 0.012, pitch, 0, 0, Math.max(12, seg))];
+}
+
+/**
  * =========================================================================
- * 2. SHIN — tapered greave, hard clearance above the foot, layered panels
- *
- *  - bottom edge terminates at y = -0.11 (0.07 to ankle, 0.13 to foot)
- *  - lower third tapers inward
- *  - accent layers never extend below y = -0.06
+ * 2. SHIN — the LEG mirror of the FOREARM: dual structural rails, an ankle
+ *    rotary drum, a front flexor actuator, and an A~L / M~Z armour cowling
+ *    with the same hardpoint-rail + cooling-fin morphemes. Greave shape
+ *    follows the band; DNA drives the profile and calf treatment.
+ *    Bottom terminates above the ankle so the foot never clips.
  * =========================================================================
  */
-export function buildLayeredShin(kit: ParsedKit, t: number, _s: number, _detailLevel: number): Spec[] {
+export function buildLayeredShin(kit: ParsedKit, t: number, s: number, _detailLevel: number): Spec[] {
   const out: Spec[] = [];
-  const { archetype, dna } = kit;
+  const { quad, dna, isOrnate } = kit;
+  const seg = Math.max(8, s);
+  const len = 0.25 * t;
+  const round = quad === "RS" || quad === "RR";
 
-  // LAYER 1: BASE — internal chassis spine + shock pistons
+  // --- INNER FRAME — same morphemes as the forearm ---
+  const railSpan = 0.03 * t;
   out.push(
-    B("dark", 0.08 * t, 0.22 * t, 0.09, 0, 0.02, -0.02),
-    C("metal", 0.012, 0.012, 0.2 * t, -0.024, 0, -0.01, 0, 0, 0, 8),
-    C("metal", 0.012, 0.012, 0.2 * t, 0.024, 0, -0.01, 0, 0, 0, 8),
+    C("dark", 0.02 * t, 0.02 * t, len * 1.04, railSpan, 0, -0.018, 0, 0, 0, seg),
+    C("dark", 0.02 * t, 0.02 * t, len * 1.04, -railSpan, 0, -0.018, 0, 0, 0, seg),
   );
+  out.push(...makeRotaryServo("joint", "metal", 0, -len * 0.5, 0, 0.038 * t, 0.05 * t, 0, 0, 0, s));
+  out.push(...makeServoActuator("dark", "metal", 0, 0, 0.03 * t, len * 0.8, 0.015 * t, 0, 0, 0, seg));
 
-  // LAYER 2: MAIN — tapered greave. Flared for heavy, pinched for speed/beast.
-  const topW = archetype === "heavy" ? 0.15 : 0.15;
-  const botW =
-    archetype === "heavy" ? 0.185 : archetype === "speed" || archetype === "beast" ? 0.085 : 0.1;
-  const mainD = shellDepth(dna, 0.12);
-  const gh = 0.24 * t;
-  out.push(Trap("prim", topW * t, botW * t, gh, 0, 0.01, 0.02, -0.12, 0, 0, mainD));
+  // --- GREAVE SHELL — band shape + DNA profile ---
+  const gw = 0.15 * t;
+  const gh = len * 1.02;
+  const gd = shellDepth(dna, 0.12);
+  out.push(...greaveShell(kit, gw, gh, gd, 0, "prim", seg));
 
-  // LAYER 3: ACCENT — knee striker + the shared Part-2 composition, both
-  // seated on the greave front so nothing floats or scissors with edges on.
-  const face: Face = faceOf(0, 0.06, 0.02, topW * t * 0.9, gh * 0.7, mainD);
-  const kneeShape =
-    archetype === "beast" || dna.accentShape === SHAPE.CONE || dna.accentShape === SHAPE.DOME
-      ? SHAPE.WEDGE
-      : dna.accentShape;
-  out.push(seatAccent(kneeShape, "sec", { ...face, cy: gh * 0.38 }, 0.085 * t, 0.075 * t, mainD * 0.42, 0, 0, 0.12));
-  out.push(...layeredAccents(dna, 0, 0.0, 0.02, topW * t * 0.9, gh * 0.66, mainD, ["sec", "trim"]));
-
-  // LAYER 3C: outer calf plate — a single wedge rooted in the greave side,
-  // no separate glow bit. Rear thruster (fast frames) is socketed at the back.
-  const rootX = topW * t * 0.4;
-  out.push(Wedge("trim", 0.04, gh * 0.4, mainD * 0.5, rootX + 0.012, 0.0, 0.0, 0, 0, -0.1));
-  if (archetype === "speed" || archetype === "heroic") {
-    out.push(...socketPort("dark", 0, -gh * 0.12, -mainD * 0.32, 0.022, 0.05, -0.35, 0, 0));
+  // --- ARMOUR COWLING — A~L vs M~Z, forearm morphemes ---
+  const front = gd * 0.5;
+  if (round) {
+    // curved shins get a raised front spine ridge, not a flat panel
+    const ridgeZ = gw * 0.42;
+    out.push(C("sec", gw * 0.16, gw * 0.13, gh * 0.82, 0, 0, ridgeZ, -0.1, 0, 0, seg));
+    if (isOrnate) {
+      out.push(
+        ...makeCoolingFins("metal", gw * 0.4, 0.04, 0.014, 0, gh * 0.22, ridgeZ + 0.01, 3, "y"),
+        B("metal", 0.02 * t, gh * 0.5, 0.012, 0, -gh * 0.06, ridgeZ + 0.02),
+        B("metal", 0.03 * t, 0.011, 0.018, 0, gh * 0.1, ridgeZ + 0.02),
+        B("metal", 0.03 * t, 0.011, 0.018, 0, -gh * 0.2, ridgeZ + 0.02),
+      );
+    } else {
+      out.push(B("metal", 0.018 * t, gh * 0.42, 0.01, 0, 0, ridgeZ + 0.02));
+    }
+  } else if (isOrnate) {
+    out.push(
+      B("sec", gw * 0.82, gh * 0.6, gd * 0.5, 0, 0.02, gd * 0.12, -0.1, 0, 0),
+      ...makeCoolingFins("metal", gw * 0.6, 0.045, 0.016, 0, gh * 0.24, front - 0.015, 3, "y"),
+      // hardpoint rail + studs (forearm morpheme)
+      B("dark", 0.024 * t, gh * 0.46, 0.016, 0, -gh * 0.04, front),
+      B("metal", 0.03 * t, 0.011, 0.02, 0, gh * 0.11, front),
+      B("metal", 0.03 * t, 0.011, 0.02, 0, -gh * 0.04, front),
+      B("metal", 0.03 * t, 0.011, 0.02, 0, -gh * 0.19, front),
+    );
+  } else {
+    out.push(
+      B("prim", gw * 0.72, gh * 0.52, gd * 0.42, 0, 0, gd * 0.16, -0.1, 0, 0),
+      B("dark", gw * 0.42, gh * 0.3, gd * 0.5, 0, 0, gd * 0.05),
+      B("metal", 0.022 * t, gh * 0.36, 0.013, 0, 0, front),
+    );
   }
 
-  // LAYER 4: ankle actuator (open gap under the armor — no foot clipping)
-  out.push(C("metal", 0.013, 0.013, botW * t * 0.9, 0, -0.09, 0, 0, 0, Math.PI / 2, 6));
+  // --- KNEE STRIKER — band-shaped, seated on the greave top-front ---
+  const kneeShape = quad === "SS" ? SHAPE.WEDGE : quad === "SR" ? SHAPE.BOX : SHAPE.CYL;
+  const kFace = faceOf(0, gh * 0.42, 0, gw * 0.85, gh * 0.26, gd);
+  out.push(
+    seatAccent(kneeShape, "sec", kFace, 0.088 * t, 0.07 * t, gd * 0.42, 0, 0, quad === "SS" ? 0.12 : 0),
+  );
+
+  // --- CALF TREATMENT — DNA-selected, rooted or socketed ---
+  const calf = (dna.hash >>> 3) % 3;
+  if (calf === 0) {
+    out.push(...socketPort("dark", 0, -gh * 0.12, -gd * 0.42, 0.02, 0.045, -0.3, 0, 0));
+  } else if (calf === 1) {
+    if (round) out.push(C("trim", 0.028, 0.02, gd * 0.55, gw * 0.44, 0, 0, Math.PI / 2, 0, 0, seg));
+    else out.push(Wedge("trim", 0.035, gh * 0.32, gd * 0.5, gw * 0.42, 0, 0, 0, 0, -0.1));
+  } else {
+    out.push(
+      B("dark", 0.011, gh * 0.14, gd * 0.3, gw * 0.44, gh * 0.06, 0),
+      B("dark", 0.011, gh * 0.14, gd * 0.3, gw * 0.44, -gh * 0.06, 0),
+    );
+  }
+
+  // --- ANKLE JOINT clearance actuator ---
+  out.push(C("metal", 0.013, 0.013, 0.05 * t, 0, -len * 0.42, 0, 0, 0, Math.PI / 2, 6));
 
   return out;
 }

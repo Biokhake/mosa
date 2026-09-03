@@ -31,19 +31,22 @@ export const SHAPE = {
   CONE: 5,
   WEDGE: 6,
   OCTA: 7,
+  CAPSULE: 8,
 } as const;
 export type ShapeId = (typeof SHAPE)[keyof typeof SHAPE];
 
-/** Band-legal primitive pools. DNA indexes into these, never outside. */
+/**
+ * Band-legal primitive pools — the shape vocabulary each band is allowed.
+ *   SS  fully angular    — boxes, prisms, wedges, octahedra
+ *   SR  angular + rounded corners — boxes (auto-filleted) + one hex / cylinder
+ *   RS  fundamentally curved — cylinders, cones, capsules
+ *   RR  curved + rounded — cylinders, capsules, domes (no sharp prisms)
+ */
 const SHAPE_POOL: Record<Quad, ShapeId[]> = {
-  // angular, sharp — boxes and low-count prisms only
   SS: [SHAPE.BOX, SHAPE.HEX, SHAPE.TRAP, SHAPE.WEDGE, SHAPE.OCTA, SHAPE.BOX],
-  // straight body with filleted corners — boxes / traps, a soft cylinder
-  SR: [SHAPE.BOX, SHAPE.TRAP, SHAPE.HEX, SHAPE.CYL, SHAPE.WEDGE, SHAPE.TRAP],
-  // curved silhouette with pointed accents — cylinders, cones, wedges
-  RS: [SHAPE.CYL, SHAPE.CONE, SHAPE.TRAP, SHAPE.WEDGE, SHAPE.HEX, SHAPE.CYL],
-  // spheres / capsules / high-segment curves — no sharp prisms
-  RR: [SHAPE.CYL, SHAPE.DOME, SHAPE.CYL, SHAPE.TRAP, SHAPE.CONE, SHAPE.DOME],
+  SR: [SHAPE.BOX, SHAPE.BOX, SHAPE.HEX, SHAPE.CYL, SHAPE.TRAP, SHAPE.BOX],
+  RS: [SHAPE.CYL, SHAPE.CONE, SHAPE.CAPSULE, SHAPE.CYL, SHAPE.DOME, SHAPE.CYL],
+  RR: [SHAPE.CYL, SHAPE.DOME, SHAPE.CAPSULE, SHAPE.CYL, SHAPE.CAPSULE, SHAPE.DOME],
 };
 
 export interface KitDNA {
