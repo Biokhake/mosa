@@ -361,10 +361,10 @@ export function buildLayeredShin(kit: ParsedKit, t: number, s: number, _detailLe
   // --- INNER FRAME — same morphemes as the forearm ---
   const railSpan = 0.03 * t;
   out.push(
-    C("dark", 0.02 * t, 0.02 * t, len * 1.04, railSpan, 0, -0.018, 0, 0, 0, seg),
-    C("dark", 0.02 * t, 0.02 * t, len * 1.04, -railSpan, 0, -0.018, 0, 0, 0, seg),
+    C("dark", 0.019 * t, 0.019 * t, len * 0.92, railSpan, -0.01, -0.025, 0, 0, 0, seg),
+    C("dark", 0.019 * t, 0.019 * t, len * 0.92, -railSpan, -0.01, -0.025, 0, 0, 0, seg),
   );
-  out.push(...makeRotaryServo("joint", "metal", 0, -len * 0.5, 0, 0.038 * t, 0.05 * t, 0, 0, 0, s));
+  out.push(...makeRotaryServo("joint", "metal", 0, -len * 0.48, 0, 0.038 * t, 0.05 * t, 0, 0, 0, s));
   out.push(...makeServoActuator("dark", "metal", 0, 0, 0.03 * t, len * 0.8, 0.015 * t, 0, 0, 0, seg));
 
   // --- GREAVE SHELL — band shape + DNA profile ---
@@ -373,38 +373,48 @@ export function buildLayeredShin(kit: ParsedKit, t: number, s: number, _detailLe
   const gd = shellDepth(dna, 0.12);
   out.push(...greaveShell(kit, gw, gh, gd, 0, "prim", seg));
 
-  // --- ARMOUR COWLING — A~L vs M~Z, forearm morphemes ---
-  const front = gd * 0.5;
+  // --- ARMOUR COWLING ---
+  // 1. main Part-2 shell layer — a clearly raised plate on the greave front.
+  const shellFront = round ? gw * 0.44 : gd * 0.5;
+  let fz: number;
   if (round) {
-    // curved shins get a raised front spine ridge, not a flat panel
-    const ridgeZ = gw * 0.42;
-    out.push(C("sec", gw * 0.16, gw * 0.13, gh * 0.82, 0, 0, ridgeZ, -0.1, 0, 0, seg));
-    if (isOrnate) {
-      out.push(
-        ...makeCoolingFins("metal", gw * 0.4, 0.04, 0.014, 0, gh * 0.22, ridgeZ + 0.01, 3, "y"),
-        B("metal", 0.02 * t, gh * 0.5, 0.012, 0, -gh * 0.06, ridgeZ + 0.02),
-        B("metal", 0.03 * t, 0.011, 0.018, 0, gh * 0.1, ridgeZ + 0.02),
-        B("metal", 0.03 * t, 0.011, 0.018, 0, -gh * 0.2, ridgeZ + 0.02),
-      );
-    } else {
-      out.push(B("metal", 0.018 * t, gh * 0.42, 0.01, 0, 0, ridgeZ + 0.02));
-    }
-  } else if (isOrnate) {
+    // a raised longitudinal shin-guard strake following the curve
+    out.push(C("sec", gw * 0.16, gw * 0.14, gh * 0.72, 0, gh * 0.02, shellFront - 0.006, -0.1, 0, 0, seg));
+    fz = shellFront + gw * 0.06;
+  } else {
+    const secD = Math.max(0.022, gd * 0.42);
     out.push(
-      B("sec", gw * 0.82, gh * 0.6, gd * 0.5, 0, 0.02, gd * 0.12, -0.1, 0, 0),
-      ...makeCoolingFins("metal", gw * 0.6, 0.045, 0.016, 0, gh * 0.24, front - 0.015, 3, "y"),
-      // hardpoint rail + studs (forearm morpheme)
-      B("dark", 0.024 * t, gh * 0.46, 0.016, 0, -gh * 0.04, front),
-      B("metal", 0.03 * t, 0.011, 0.02, 0, gh * 0.11, front),
-      B("metal", 0.03 * t, 0.011, 0.02, 0, -gh * 0.04, front),
-      B("metal", 0.03 * t, 0.011, 0.02, 0, -gh * 0.19, front),
+      shp(quad === "SS" ? SHAPE.TRAP : SHAPE.BOX, "sec", gw * 0.82, gh * 0.62, secD, 0, gh * 0.02, shellFront - secD * 0.28, 0),
+    );
+    fz = shellFront + secD * 0.22 + 0.004;
+  }
+
+  // 2. ONE DNA-selected front detail — the Picatinny rail is now just one of
+  //    four, offset off-centre so nothing reads as a fixed centre bar cross.
+  const detailMode = (dna.hash >>> 6) % 4;
+  if (detailMode === 0) {
+    const rx = gw * 0.22;
+    out.push(
+      B("dark", 0.022 * t, gh * 0.36, 0.014, rx, -gh * 0.02, fz),
+      B("metal", 0.026 * t, 0.01, 0.016, rx, gh * 0.1, fz),
+      B("metal", 0.026 * t, 0.01, 0.016, rx, -gh * 0.04, fz),
+      B("metal", 0.026 * t, 0.01, 0.016, rx, -gh * 0.18, fz),
+    );
+  } else if (detailMode === 1) {
+    out.push(B("acc", gw * 0.52, 0.024 * t, gd * 0.3, 0, gh * 0.04, fz, 0, 0, 0.42));
+  } else if (detailMode === 2) {
+    // one angled deflector scoop, offset — not a centred stack
+    out.push(
+      Wedge("acc", gw * 0.5, gh * 0.34, gd * 0.34, -gw * 0.12, gh * 0.02, fz - gd * 0.08, -0.1, 0, 0.16),
+      B("dark", gw * 0.24, gh * 0.05, gd * 0.2, gw * 0.18, gh * 0.16, fz - gd * 0.04),
     );
   } else {
     out.push(
-      B("prim", gw * 0.72, gh * 0.52, gd * 0.42, 0, 0, gd * 0.16, -0.1, 0, 0),
-      B("dark", gw * 0.42, gh * 0.3, gd * 0.5, 0, 0, gd * 0.05),
-      B("metal", 0.022 * t, gh * 0.36, 0.013, 0, 0, front),
+      Trap("trim", gw * 0.42, gw * 0.62, gh * 0.15, 0, gh * 0.24, fz - gd * 0.04, -0.1, 0, 0, gd * 0.22),
     );
+    if (isOrnate) {
+      out.push(...makeCoolingFins("metal", gw * 0.44, 0.038, 0.012, 0, -gh * 0.24, fz - 0.01, 3, "y"));
+    }
   }
 
   // --- KNEE STRIKER — band-shaped, seated on the greave top-front ---
@@ -414,18 +424,16 @@ export function buildLayeredShin(kit: ParsedKit, t: number, s: number, _detailLe
     seatAccent(kneeShape, "sec", kFace, 0.088 * t, 0.07 * t, gd * 0.42, 0, 0, quad === "SS" ? 0.12 : 0),
   );
 
-  // --- CALF TREATMENT — DNA-selected, rooted or socketed ---
+  // --- CALF TREATMENT — DNA-selected, rooted or socketed (one shape only) ---
   const calf = (dna.hash >>> 3) % 3;
   if (calf === 0) {
     out.push(...socketPort("dark", 0, -gh * 0.12, -gd * 0.42, 0.02, 0.045, -0.3, 0, 0));
   } else if (calf === 1) {
-    if (round) out.push(C("trim", 0.028, 0.02, gd * 0.55, gw * 0.44, 0, 0, Math.PI / 2, 0, 0, seg));
-    else out.push(Wedge("trim", 0.035, gh * 0.32, gd * 0.5, gw * 0.42, 0, 0, 0, 0, -0.1));
+    if (round) out.push(C("trim", 0.028, 0.02, gd * 0.55, gw * 0.44, -gh * 0.02, 0, Math.PI / 2, 0, 0, seg));
+    else out.push(Wedge("trim", 0.035, gh * 0.32, gd * 0.5, gw * 0.42, -gh * 0.02, 0, 0, 0, -0.1));
   } else {
-    out.push(
-      B("dark", 0.011, gh * 0.14, gd * 0.3, gw * 0.44, gh * 0.06, 0),
-      B("dark", 0.011, gh * 0.14, gd * 0.3, gw * 0.44, -gh * 0.06, 0),
-    );
+    // a single recessed side scoop
+    out.push(B("dark", 0.016 * t, gh * 0.22, gd * 0.34, gw * 0.44, 0, 0, 0, 0, -0.12));
   }
 
   // --- ANKLE JOINT clearance actuator ---
