@@ -146,12 +146,15 @@ export const Trap = (
   rx = 0,
   ry = 0,
   rz = 0,
+  depth?: number,
 ): Spec => ({
   t: "trap",
   m,
   s: [wTop, wBot, h],
   p: [x, y, z],
   r: rx || ry || rz ? [rx, ry, rz] : undefined,
+  // `n` doubles as the extrusion depth for trapezoids (default 0.04 in buildPart).
+  n: depth,
 });
 
 export const Cowl = (

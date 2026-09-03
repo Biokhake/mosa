@@ -6,7 +6,7 @@ import { isLeftSlot, isVisorSlot } from "./catalog";
 import { getRecipe, type Recipe } from "./recipes";
 
 import type { Spec } from "./geometry/types";
-import { B, C, Sp, N } from "./geometry/primitives";
+import { B, C, Sp, N, Wedge } from "./geometry/primitives";
 
 // Modular Geometry Generators
 import {
@@ -280,10 +280,46 @@ function dressPart2(prim: Spec[], r: Recipe, slotId: string): Spec[] {
   return out;
 }
 
+/**
+ * Master Prompt 8.0 —묘수 2: shields must have real mass, never a flat plane.
+ * Deepen every primary plate and push a shallow wedge boss through the face so
+ * the shield reads as a wedge / spherical / pyramidal volume.
+ */
+function volumizeShield(specs: Spec[]): Spec[] {
+  const out: Spec[] = [];
+  let cx = 0;
+  let cy = 0;
+  let maxW = 0.18;
+  let n = 0;
+  for (const s of specs) {
+    let sp = s;
+    if (s.m === "prim") {
+      if (s.t === "box") {
+        sp = { ...s, s: [s.s[0], s.s[1], Math.max(s.s[2], 0.05) * 2.2] as [number, number, number] };
+      } else if (s.t === "trap") {
+        sp = { ...s, n: Math.max(s.n ?? 0.04, 0.05) * 2.6 };
+      } else if (s.t === "cyl") {
+        sp = { ...s, s: [s.s[0], s.s[1], Math.max(s.s[2], 0.05) * 2.0] as [number, number, number] };
+      }
+      cx += s.p[0];
+      cy += s.p[1];
+      maxW = Math.max(maxW, s.s[0]);
+      n += 1;
+    }
+    out.push(sp);
+  }
+  if (n > 0) {
+    out.push(
+      Wedge("sec", maxW * 0.52, maxW * 0.72, maxW * 0.36, cx / n, cy / n, 0.03, 0.15, 0, 0),
+    );
+  }
+  return out;
+}
+
 export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
   if (variant === "none") return [];
   if (slotId === "weaponR" || slotId === "weaponL") return weaponSpecs(variant, beamZ);
-  if (slotId === "shield") return ensureLR(shieldSpecs(variant));
+  if (slotId === "shield") return ensureLR(volumizeShield(shieldSpecs(variant)));
   if (slotId.startsWith("extra")) return ensureLR(extraSpecs(variant));
 
   const r = getRecipe(variant);
@@ -751,7 +787,7 @@ export function buildPart(
     } else if (sp.t === "wedge") {
       geo = createWedgeGeometry(sp.s[0], sp.s[1], sp.s[2]);
     } else if (sp.t === "trap") {
-      geo = createTrapezoidGeometry(sp.s[0], sp.s[1], sp.s[2]);
+      geo = createTrapezoidGeometry(sp.s[0], sp.s[1], sp.s[2], sp.n ?? 0.04);
     } else if (sp.t === "cowl") {
       geo = createCowlGeometry(sp.s[0], sp.s[1], sp.s[2]);
     } else if (sp.t === "claw") {

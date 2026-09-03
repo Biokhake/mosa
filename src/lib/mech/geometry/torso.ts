@@ -11,6 +11,7 @@ import {
   makeStandoffArmor,
   makeCoolingFins,
 } from "./primitives";
+import { generateKitDNA } from "./dna";
 
 /**
  * Collar (Neck Mount & Cervical Actuator Assembly).
@@ -78,15 +79,25 @@ export function chestCore(r: Recipe): Spec[] {
     ...makeCoolingFins("metal", 0.06 * t, 0.12, 0.04, 0.12 * t, 0.01, 0.1, 4, "y"),
   );
 
-  // Front Armor (A~L vs M~Z)
+  // Front Armor (A~L vs M~Z) — Master Prompt 8.0 묘수 2/3: real Z volume, and
+  // the accent tier crosses to a different primitive than the square base.
+  const dna = generateKitDNA(r.code.id);
+  const zv = dna.zVolume;
   if (r.ornate) {
     out.push(
-      ...makeStandoffArmor(r, "prim", 0.34 * t, 0.2, 0.06, 0, 0.01, 0.13, 0.035),
-      B("sec", 0.26 * t, 0.14, 0.04, 0, 0.01, 0.18),
+      ...makeStandoffArmor(r, "prim", 0.34 * t, 0.2, 0.06 * zv * 0.6, 0, 0.01, 0.13, 0.035),
+      // central sculpted mass — wedge, not a lid
+      Wedge("prim", 0.2 * t, 0.15, 0.05 * zv, 0, 0.02, 0.15, 0.2, 0, 0),
+      B("sec", 0.26 * t, 0.14, 0.04, 0, 0.01, 0.18 + 0.03 * zv),
+      // cross-combined cylindrical intake stack over the square plate
+      C("dark", 0.05 * t, 0.05 * t, 0.06 * zv, 0, -0.03, 0.16, Math.PI / 2, 0, 0, 12),
+      C("glow", 0.03 * t, 0.03 * t, 0.02, 0, -0.03, 0.16 + 0.03 * zv, Math.PI / 2, 0, 0, 10),
     );
   } else {
     out.push(
-      B("prim", 0.3 * t, 0.16, 0.04, 0, 0.01, 0.13),
+      B("prim", 0.3 * t, 0.16, 0.05 * zv * 0.7, 0, 0.01, 0.13),
+      Wedge("prim", 0.18 * t, 0.13, 0.045 * zv, 0, 0.02, 0.15, 0.18, 0, 0),
+      C("dark", 0.045 * t, 0.045 * t, 0.05 * zv, 0, -0.03, 0.15, Math.PI / 2, 0, 0, 10),
     );
   }
 
