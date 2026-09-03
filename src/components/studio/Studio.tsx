@@ -624,56 +624,74 @@ export function Studio() {
 }
 
 function PoseIcon({ kind }: { kind: string }) {
-  const p = { className: "size-6", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" } as const;
+  const p = { className: "size-6", fill: "none", stroke: "currentColor", strokeWidth: "1.7", strokeLinecap: "round", strokeLinejoin: "round" } as const;
   if (kind === "attention") {
+    // stiff: feet together, arms clamped to the sides
     return (
       <svg viewBox="0 0 24 24" {...p}>
-        <rect x="9.5" y="2.2" width="5" height="4.6" rx="0.7" />
-        <path d="M12 7.2v8" />
-        <path d="M8.6 8.6v6.6M15.4 8.6v6.6" />
-        <path d="M12 15.2v6.4" />
-        <path d="M10.4 21.6h3.2" />
+        <circle cx="12" cy="4.4" r="2.3" />
+        <path d="M12 6.8v8.4" />
+        <path d="M9.5 8v6.6M14.5 8v6.6" />
+        <path d="M12 15.2 10.8 21.6M12 15.2 13.2 21.6" />
+      </svg>
+    );
+  }
+  if (kind === "relaxed") {
+    // natural idle: arms hanging with a small gap, feet a little apart
+    return (
+      <svg viewBox="0 0 24 24" {...p}>
+        <circle cx="12" cy="4.2" r="2.3" />
+        <path d="M12 6.5v8" />
+        <path d="M12 8 8.6 14.4M12 8l3.4 6.4" />
+        <path d="M12 14.5 9 21.6M12 14.5l3 7.1" />
       </svg>
     );
   }
   if (kind === "flight") {
+    // pitched forward, arms tucked back, legs streamed behind + speed lines
     return (
       <svg viewBox="0 0 24 24" {...p}>
-        <rect x="3.4" y="4.6" width="4.4" height="4.4" rx="0.7" transform="rotate(38 5.6 6.8)" />
-        <path d="M8 8.6 17 13" />
-        <path d="M9.5 6.5 4 3.6M9.5 10.5 4 12.8" />
-        <path d="m17 13 4.5 3.4M17 13l3.6 4.6" />
+        <g transform="rotate(-34 12 12)">
+          <circle cx="12" cy="4.6" r="2.2" />
+          <path d="M12 6.8v8.6" />
+          <path d="M12 8.6 8.8 12M12 8.6l-2.6 3.8" />
+          <path d="M12 15.4 10.4 21.6M12 15.4l1.8 6.2" />
+        </g>
+        <path d="M2.5 15.5h4M2 19h6" opacity="0.7" />
       </svg>
     );
   }
   if (kind === "shooting") {
+    // bladed stance, lead arm extended straight, rear arm braced
     return (
       <svg viewBox="0 0 24 24" {...p}>
-        <rect x="13" y="2.4" width="5" height="4.4" rx="0.7" />
-        <path d="M15.5 7v6" />
-        <path d="M15.5 8.8 5 8" />
-        <path d="M15.5 10.5h-4v3" />
-        <path d="M15.5 13l-2.5 8M15.5 13l3 8" />
+        <circle cx="15" cy="4.4" r="2.2" />
+        <path d="M15 6.6v7" />
+        <path d="M15 8.6 4 8" />
+        <path d="M15 10.6h-3.4v2.6" />
+        <path d="M15 13.6 10.8 21.6M15 13.6 18.4 20.4" />
       </svg>
     );
   }
   if (kind === "sword") {
+    // wide low stance, saber arm out to the side + long blade, shield arm crossed
     return (
       <svg viewBox="0 0 24 24" {...p}>
-        <rect x="8" y="2.2" width="5" height="4.4" rx="0.7" />
-        <path d="M10.5 7v5.5" />
-        <path d="m10.5 8.6 8-4.2M10.5 11l-5 1.5" />
-        <path d="M10.5 12.5 8 21M10.5 12.5 14 21" />
+        <circle cx="11" cy="4.6" r="2.2" />
+        <path d="M11 6.8v6" />
+        <path d="M11 8.6 17.5 7" />
+        <path d="M17.5 7 23 2.6" strokeWidth="2.3" />
+        <path d="M11 10.2 7.6 9.6" />
+        <path d="M11 12.8 6 17l-1.2 4.6M11 12.8 16 17l1.4 4.6" />
       </svg>
     );
   }
   return (
     <svg viewBox="0 0 24 24" {...p}>
-      <rect x="9.3" y="2" width="5" height="4.4" rx="0.7" />
-      <path d="M12 6.6v7.2" />
-      <path d="M7.4 9.4h4.2v4.4" />
-      <path d="M16.6 9.4h-4.2v3.6" />
-      <path d="M12 13.8 8.8 21.6M12 13.8l3.4 7.8" />
+      <circle cx="12" cy="4.2" r="2.3" />
+      <path d="M12 6.5v8" />
+      <path d="M12 8 8.6 14.4M12 8l3.4 6.4" />
+      <path d="M12 14.5 9 21.6M12 14.5l3 7.1" />
     </svg>
   );
 }
@@ -692,8 +710,8 @@ function PoseMenu({
   const left = `clamp(8px, ${x + 6}px, calc(100% - 268px))`;
   const top = `clamp(8px, ${y + 6}px, calc(100% - 60px))`;
   const items: { id: string; label: string }[] = [
+    { id: "relaxed", label: "Relaxed stance" },
     { id: "attention", label: "Attention pose" },
-    { id: "aim", label: "Aim pose" },
     { id: "flight", label: "Flight pose" },
     { id: "shooting", label: "Shooting pose" },
     { id: "sword", label: "Sword-strike pose" },

@@ -330,7 +330,7 @@ function emptySession(): SessionSlice {
     name: "FRAME-00",
     slots: defaultSlots(),
     theme: "light",
-    poseId: "attention",
+    poseId: "relaxed",
     panels: defaultPanels(),
     light: DEFAULT_VISOR,
     selected: "helm",
@@ -383,7 +383,7 @@ function load(): SessionSlice {
       name: parsed.name || base.name,
       slots,
       theme: parsed.theme === "dark" ? "dark" : "light",
-      poseId: parsed.poseId || "aim",
+      poseId: parsed.poseId || "relaxed",
       light: parsed.light || parsed.slots?.visor?.paint || DEFAULT_VISOR,
       panels: {
         parts: restorePanel("parts", parsed.panels?.parts),
@@ -603,7 +603,7 @@ export const useStudio = create<StudioState>((set, get) => ({
       name: "FRAME-00",
       slots: defaultSlots(),
       selected: "helm",
-      poseId: "aim",
+      poseId: "relaxed",
       light: DEFAULT_VISOR,
       groupXform: emptyGroupXform(),
     });

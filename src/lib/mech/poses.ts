@@ -3,15 +3,35 @@
  * applied with real forward kinematics and clamped to each node's rated range
  * of motion. Five presets; the studio has no per-joint UI (that is a later
  * pass), only this menu.
+ *
+ * `relaxed` is the default: a balanced idle stance. `attention` is the stiff
+ * heels-together pose kept for checking part seams / balance.
  */
 
 import type { Vec3 } from "./types";
 import { NODE_ROM, RIG_NODES, clampNodeRotation } from "./rig";
 import type { RigNodeId } from "./rig";
 
-export type PoseId = "attention" | "aim" | "flight" | "shooting" | "sword";
+export type PoseId = "attention" | "relaxed" | "flight" | "shooting" | "sword";
 
-export const POSE_IDS: PoseId[] = ["attention", "aim", "flight", "shooting", "sword"];
+export const POSE_IDS: PoseId[] = ["attention", "relaxed", "flight", "shooting", "sword"];
+
+/*
+ * SIGN CONVENTION (render rig; node-local frame is world-aligned in neutral;
+ * limb bones hang along -Y). three.js Euler order XYZ, values in degrees.
+ *
+ *   rx  -x = limb swings FORWARD (+Z)   |  +x = limb swings BACK (-Z)
+ *         shoulder: -x flexion (arm up-front)   hip: -x thigh forward
+ *         elbow:    -x flexion (forearm up-front)
+ *         knee:     +x flexion (shin folds back)
+ *         ankle:    -x dorsiflexion (toe up)     +x plantarflexion (toe down)
+ *   ry  +y = turn the FRONT toward +X (right).  torso +y: right shoulder back.
+ *   rz  limb tip moves toward +X for +z.
+ *         RIGHT limb: +z = abduction (out).   LEFT limb: -z = abduction (out).
+ *         torso +z = lean right.
+ */
+
+export const DEFAULT_POSE_ID: PoseId = "relaxed";
 
 export interface Pose {
   label: string;
@@ -27,42 +47,43 @@ const RAW_POSES: Record<PoseId, Pose> = {
     nodes: {},
   },
 
-  aim: {
-    label: "Aim",
+  // default — balanced natural idle: feet a little apart, arms hanging almost
+  // straight with a small gap from the body, knees barely broken. Subtle.
+  relaxed: {
+    label: "Relaxed",
     nodes: {
-      torso: [3, 4, 0],
-      neck: [3, 6, 0],
-      shoulderR: [-16, 0, -6],
-      elbowR: [-58, 0, 0],
-      wristR: [0, 22, 0],
-      shoulderL: [-14, 0, 6],
-      elbowL: [-72, 0, 0],
-      wristL: [0, -28, 0],
-      hipR: [-8, 0, 4],
-      kneeR: [16, 0, 0],
-      ankleR: [-7, 0, 0],
-      hipL: [-6, 0, -4],
-      kneeL: [12, 0, 0],
-      ankleL: [-6, 0, 0],
+      shoulderR: [-2, 0, 5],
+      elbowR: [-7, 0, 0],
+      shoulderL: [-2, 0, -5],
+      elbowL: [-7, 0, 0],
+      hipR: [0, 0, 4],
+      kneeR: [4, 0, 0],
+      ankleR: [-2, 0, -4],
+      hipL: [0, 0, -4],
+      kneeL: [4, 0, 0],
+      ankleL: [-2, 0, 4],
     },
   },
 
+  // dash flight: body pitched forward, head up to look ahead, arms bent and
+  // held close along the torso (slight open at the shoulder), legs streamed
+  // straight behind with the toes pointed
   flight: {
     label: "Flight",
-    root: { pos: [0, 0.12, 0.02], rot: [26, 0, 0] },
+    root: { pos: [0, 0.1, 0.0], rot: [34, 0, 0] },
     nodes: {
-      torso: [-8, 0, 0],
-      neck: [-32, 0, 0],
-      shoulderR: [-38, 0, -12],
-      elbowR: [-14, 0, 0],
-      shoulderL: [-38, 0, 12],
-      elbowL: [-14, 0, 0],
-      hipR: [-12, 0, 3],
-      kneeR: [8, 0, 0],
-      ankleR: [30, 0, 0],
-      hipL: [-12, 0, -3],
-      kneeL: [8, 0, 0],
-      ankleL: [30, 0, 0],
+      torso: [-6, 0, 0],
+      neck: [-38, 0, 0],
+      shoulderR: [6, 0, 7],
+      elbowR: [-46, 0, 0],
+      shoulderL: [6, 0, -7],
+      elbowL: [-46, 0, 0],
+      hipR: [-9, 0, 3],
+      kneeR: [12, 0, 0],
+      ankleR: [34, 0, 0],
+      hipL: [-9, 0, -3],
+      kneeL: [12, 0, 0],
+      ankleL: [34, 0, 0],
     },
   },
 
@@ -87,24 +108,27 @@ const RAW_POSES: Record<PoseId, Pose> = {
     },
   },
 
+  // classic beam-saber ready stance (RX-78 style): saber arm extended out to
+  // the side near horizontal, shield arm folded across the chest, wide + deep
+  // planted stance, weight low and centred, eyes down the saber line
   sword: {
     label: "Sword strike",
-    root: { pos: [0, -0.02, 0.03], rot: [6, -8, 3] },
+    root: { pos: [0, -0.07, 0.02], rot: [6, 0, 0] },
     nodes: {
-      torso: [6, -26, 4],
-      neck: [8, 20, 0],
-      shoulderR: [40, -18, -18],
-      elbowR: [-30, 0, 0],
-      wristR: [0, 0, -18],
-      shoulderL: [-15, 0, 30],
-      elbowL: [-45, 0, 0],
-      wristL: [0, 16, 0],
-      hipR: [-28, -10, 10],
-      kneeR: [45, 0, 0],
-      ankleR: [-12, 0, 0],
-      hipL: [12, 8, -8],
-      kneeL: [10, 0, 0],
-      ankleL: [22, 0, 0],
+      torso: [8, -6, 0],
+      neck: [3, 12, 0],
+      shoulderR: [-8, -4, 82],
+      elbowR: [-6, 0, 0],
+      wristR: [0, 0, -10],
+      shoulderL: [-42, 0, 46],
+      elbowL: [-78, 0, 0],
+      wristL: [0, 14, 0],
+      hipR: [-8, 6, 24],
+      kneeR: [52, 0, 0],
+      ankleR: [-6, 0, -22],
+      hipL: [-8, -6, -24],
+      kneeL: [52, 0, 0],
+      ankleL: [-6, 0, 22],
     },
   },
 };
