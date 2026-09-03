@@ -275,6 +275,20 @@ export interface FunctionalReport {
   load: LoadReport;
 }
 
+/** What the composition critic found, and which candidate it picked. */
+export interface AestheticReport {
+  /** 0..1 — 1 is a clean composition, penalties subtract */
+  score: number;
+  penalties: Record<string, number>;
+  notes: string[];
+  /** the generate-and-select candidate that won (0 = primary build) */
+  variant: number;
+  /** the limb-armour topology this design resolved to */
+  topology: string;
+  /** how many candidates were built and scored */
+  attempts: number;
+}
+
 /** The full output for one designed slot. */
 export interface SlotArtifact {
   slot: SlotId;
@@ -282,6 +296,7 @@ export interface SlotArtifact {
   joints: Joint[];
   hardpoints: Hardpoint[];
   functional: FunctionalReport;
+  aesthetic?: AestheticReport;
 }
 
 /** The full output for one kit (Phase 1: only `shin` is populated). */

@@ -32,7 +32,25 @@ const PHIL_TOPOLOGY: Record<string, LimbTopology[]> = {
   "predator-organic": ["spine", "spine", "split", "clamshell"],
 };
 
-/** Pick this kit's limb-armour topology from its philosophy. */
+/** The distinct topologies open to this brief — the critic picks among these. */
+export function topologyPool(brief: Brief): LimbTopology[] {
+  const base = PHIL_TOPOLOGY[brief.philosophy] ?? ["shell", "tiered", "split"];
+  const withExposure: LimbTopology[] =
+    brief.frameExposure > 0.5 ? [...base, "clamshell", "segmented"] : base;
+  return [...new Set(withExposure)];
+}
+
+/**
+ * How strongly the philosophy wants this topology (0..1 by frequency in its
+ * weighted list). Used to stop the critic's mild bias toward the simplest
+ * arrangement from flattening every philosophy to shell/split.
+ */
+export function topologyAffinity(brief: Brief, t: LimbTopology): number {
+  const list = PHIL_TOPOLOGY[brief.philosophy] ?? ["shell", "tiered", "split"];
+  return list.filter((x) => x === t).length / list.length;
+}
+
+/** Pick this kit's limb-armour topology from its philosophy (fallback path). */
 export function pickLimbTopology(brief: Brief, rng: Rng): LimbTopology {
   const pool = PHIL_TOPOLOGY[brief.philosophy] ?? ["shell", "tiered", "split"];
   // frame-exposed designs lean toward clamshell / segmented (you can see inside)

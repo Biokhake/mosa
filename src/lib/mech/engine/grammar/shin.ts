@@ -18,6 +18,13 @@ import { pickLimbTopology } from "./topology";
 import type { LimbTopology } from "./topology";
 import { buildLimbArmour } from "./limbArmour";
 
+export interface ShinOpts {
+  /** override the philosophy-derived topology (the critic picks per leg) */
+  topology?: LimbTopology;
+  /** generate-and-select salt — perturbs detail placement, not structure */
+  variant?: number;
+}
+
 const HALF_PI = Math.PI / 2;
 
 interface Ctx {
@@ -230,15 +237,16 @@ function calfPod(ctx: Ctx, g: Greave) {
   if (brief.decoration < 0.45 && brief.role !== "artillery" && brief.role !== "support") return;
   const round = brief.silhouette === "R";
   // sit LOW on the calf (well clear of the knee pivot) and don't reach far back
-  const py = g.cy - g.h * 0.14;
-  const pz = -g.depth * 0.32;
-  root(ctx, 0, py + g.h * 0.16, -g.depth * 0.24, rig.girth * 0.13);
+  const py = g.cy - g.h * (0.14 + ctx.rng.range(-0.03, 0.05));
+  const pz = -g.depth * (0.3 + ctx.rng.range(-0.02, 0.05));
+  const len = g.h * ctx.rng.range(0.4, 0.5);
+  root(ctx, 0, py + len * 0.4, -g.depth * 0.24, rig.girth * 0.13);
   out.push({
     kind: round ? "cyl" : "box",
     role: "armorB",
     size: round
-      ? [rig.girth * 0.28, rig.girth * 0.24, g.h * 0.42]
-      : [rig.girth * 0.5, g.h * 0.44, rig.girth * 0.26],
+      ? [rig.girth * 0.28, rig.girth * 0.24, len]
+      : [rig.girth * 0.5, len, rig.girth * 0.26],
     pos: [0, py, pz],
     rot: [0.08, 0, 0],
     sides: round ? 14 : undefined,
@@ -251,7 +259,7 @@ function calfPod(ctx: Ctx, g: Greave) {
 /** Detail budget: L=4, M=2, S=1 points. Spend, then stop. Joint/Vent zones only. */
 function details(ctx: Ctx, g: Greave) {
   const { brief, prop, rng, rig, out } = ctx;
-  let budget = Math.round(2 + brief.decoration * 6); // 2..8
+  let budget = Math.round(2 + brief.decoration * 6) + rng.int(2) - 1; // 2..8, ±1
   const [L, M, S] = prop.detailSizes;
 
   // L — the hero, on the knee guard (joint zone)
@@ -300,12 +308,13 @@ function details(ctx: Ctx, g: Greave) {
   // M — a calf vent louver set (vent zone), if there is a pod-ish back
   if (budget >= 2 && brief.decoration > 0.4) {
     budget -= 2;
-    for (let i = 0; i < 3; i++) {
+    const louvers = 2 + rng.int(2); // 2..3
+    for (let i = 0; i < louvers; i++) {
       out.push({
         kind: "box",
         role: "mechanism",
         size: [rig.girth * 0.34, M * 0.35, rig.girth * 0.12],
-        pos: [0, g.cy + (i - 1) * M * 0.9, -g.depth * 0.46],
+        pos: [0, g.cy + (i - (louvers - 1) / 2) * M * 0.9, -g.depth * 0.46],
         rot: [0.12, 0, 0],
         tier: "detail",
         zone: "vent",
@@ -315,7 +324,7 @@ function details(ctx: Ctx, g: Greave) {
   }
 
   // S — a few bolt heads on the knee guard (joint zone)
-  const bolts = Math.min(budget, brief.decoration > 0.55 ? 4 : 2);
+  const bolts = Math.max(0, Math.min(budget, (brief.decoration > 0.55 ? 4 : 2) + rng.int(2) - 1));
   for (let i = 0; i < bolts; i++) {
     const a = (i / Math.max(1, bolts - 1) - 0.5) * g.wTop * 0.55;
     out.push({
@@ -330,13 +339,13 @@ function details(ctx: Ctx, g: Greave) {
       bevel: 0,
     });
   }
-  if (rng) void rng; // reserved for future stochastic placement
 }
 
-export function grammarShin(brief: Brief, prop: Proportions, rig: ShinRig): Prim[] {
-  const rng = makeRng(`shin:${brief.seed}`);
+export function grammarShin(brief: Brief, prop: Proportions, rig: ShinRig, opts: ShinOpts = {}): Prim[] {
+  const variant = opts.variant ?? 0;
+  const rng = makeRng(`shin:${brief.seed}:${variant}`);
   // the topology is a LEG-level decision so the thigh matches the shin.
-  const topology = pickLimbTopology(brief, makeRng(`leg:${brief.seed}`));
+  const topology = opts.topology ?? pickLimbTopology(brief, makeRng(`leg:${brief.seed}`));
   const ctx: Ctx = { brief, prop, rig, rng, topology, out: [] };
   frameLayer(ctx);
   const g = greaveMass(ctx);

@@ -14,6 +14,11 @@ import { pickLimbTopology } from "./topology";
 import type { LimbTopology } from "./topology";
 import { buildLimbArmour } from "./limbArmour";
 
+export interface ThighOpts {
+  topology?: LimbTopology;
+  variant?: number;
+}
+
 const HALF_PI = Math.PI / 2;
 
 interface Ctx {
@@ -177,8 +182,8 @@ function hipCap(ctx: Ctx, s: Shell) {
 
 /** Detail budget — leaner than the shin (the thigh is largely a plain mass). */
 function details(ctx: Ctx, s: Shell) {
-  const { brief, prop, rig, out } = ctx;
-  let budget = Math.round(1 + brief.decoration * 4); // 1..5
+  const { brief, prop, rig, rng, out } = ctx;
+  let budget = Math.round(1 + brief.decoration * 4) + rng.int(2) - 1; // 1..5, ±1
   const [L, M, S] = prop.detailSizes;
 
   // L — a hip vent / intake on the outer face (vent zone), if decorated
@@ -188,7 +193,7 @@ function details(ctx: Ctx, s: Shell) {
       kind: brief.edge === "S" ? "box" : "cyl",
       role: "mechanism",
       size: brief.edge === "S" ? [rig.girth * 0.3, L * 0.9, rig.girth * 0.14] : [L * 0.5, L * 0.5, rig.girth * 0.16],
-      pos: [rig.girth * 0.5, s.cy + s.h * 0.2, -s.depth * 0.28],
+      pos: [rig.girth * 0.5, s.cy + s.h * (0.14 + rng.range(0, 0.14)), -s.depth * 0.28],
       rot: [0.1, 0, 0.2],
       sides: 12,
       tier: "detail",
@@ -213,7 +218,7 @@ function details(ctx: Ctx, s: Shell) {
   }
 
   // S — bolt heads along the hip cap
-  const bolts = Math.min(budget, brief.decoration > 0.55 ? 3 : 2);
+  const bolts = Math.max(0, Math.min(budget, (brief.decoration > 0.55 ? 3 : 2) + rng.int(2) - 1));
   for (let i = 0; i < bolts; i++) {
     const a = (i / Math.max(1, bolts - 1) - 0.5) * s.wTop * 0.5;
     out.push({
@@ -230,9 +235,10 @@ function details(ctx: Ctx, s: Shell) {
   }
 }
 
-export function grammarThigh(brief: Brief, prop: Proportions, rig: ThighRig): Prim[] {
-  const topology = pickLimbTopology(brief, makeRng(`leg:${brief.seed}`));
-  const ctx: Ctx = { brief, prop, rig, rng: makeRng(`thigh:${brief.seed}`), topology, out: [] };
+export function grammarThigh(brief: Brief, prop: Proportions, rig: ThighRig, opts: ThighOpts = {}): Prim[] {
+  const variant = opts.variant ?? 0;
+  const topology = opts.topology ?? pickLimbTopology(brief, makeRng(`leg:${brief.seed}`));
+  const ctx: Ctx = { brief, prop, rig, rng: makeRng(`thigh:${brief.seed}:${variant}`), topology, out: [] };
   frameLayer(ctx);
   const s = thighShell(ctx);
   hipCap(ctx, s);

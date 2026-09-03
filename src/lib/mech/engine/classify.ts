@@ -40,14 +40,42 @@ function primVolume(p: Prim): number {
   }
 }
 
+const HALF_PI_C = Math.PI / 2;
+
+/** Per-axis half-extents of a primitive, accounting for the common rotations. */
+function halfExtent(p: Prim): [number, number, number] {
+  const [a, b, c] = p.size.map(Math.abs) as [number, number, number];
+  switch (p.kind) {
+    case "cyl":
+    case "cone": {
+      const r = Math.max(a, b);
+      const rx = p.rot?.[0] ?? 0;
+      const rz = p.rot?.[2] ?? 0;
+      if (Math.abs(Math.abs(rz) - HALF_PI_C) < 0.4) return [c / 2, r, r];
+      if (Math.abs(Math.abs(rx) - HALF_PI_C) < 0.4) return [r, c / 2, r];
+      return [r, c / 2, r];
+    }
+    case "capsule":
+      return [a, b / 2 + a, a];
+    case "sphere":
+    case "hemi":
+    case "octa":
+      return [a, a, a];
+    case "trapPrism":
+      return [Math.max(a, b) / 2, c / 2, (p.depth ?? 0.04) / 2];
+    default:
+      return [a / 2, b / 2, c / 2];
+  }
+}
+
 function aabbUnion(prims: Prim[]): number {
-  let min = [Infinity, Infinity, Infinity];
-  let max = [-Infinity, -Infinity, -Infinity];
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
   for (const p of prims) {
-    const r = Math.max(...p.size.map(Math.abs));
+    const e = halfExtent(p);
     for (let k = 0; k < 3; k++) {
-      min[k] = Math.min(min[k]!, p.pos[k]! - r);
-      max[k] = Math.max(max[k]!, p.pos[k]! + r);
+      min[k] = Math.min(min[k]!, p.pos[k]! - e[k]!);
+      max[k] = Math.max(max[k]!, p.pos[k]! + e[k]!);
     }
   }
   if (!isFinite(min[0]!)) return 1;
