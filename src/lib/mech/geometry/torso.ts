@@ -37,6 +37,28 @@ export function collar(r: Recipe): Spec[] {
     B("prim", 0.22 * t, 0.05, 0.18, 0, 0, 0),
   );
 
+  // --- Clavicle struts -------------------------------------------------------
+  // The arm groups are pinned to FIXED shoulder sockets (x ±0.30, y 1.48). A
+  // narrow thorax otherwise leaves the pauldron hanging in space with nothing
+  // joining it to the body. These struts always span from the sternum out to
+  // that socket, so there is a visible load path regardless of torso width.
+  {
+    const SOCK_X = 0.3; // must track SLOT_BY_ID.shoulderR socket x
+    const dy = 1.48 - 1.62; // shoulder socket relative to the collar socket
+    const dz = 0 - 0.02;
+    for (const sgn of [-1, 1] as const) {
+      const innerX = sgn * 0.1;
+      const outerX = sgn * SOCK_X;
+      const midX = (innerX + outerX) / 2;
+      const len = Math.abs(outerX - innerX) + 0.06;
+      out.push(
+        B("dark", len, 0.05, 0.1, midX, dy * 0.55, dz, 0, 0, sgn * 0.05),
+        C("metal", 0.05, 0.07, 0.1, outerX, dy, dz, 0, 0, Math.PI / 2, s),
+        Torus("joint", 0.06, 0.014, outerX, dy, dz, 0, Math.PI / 2, 0),
+      );
+    }
+  }
+
   if (r.ornate) {
     out.push(
       B("trim", 0.24 * t, 0.015, 0.12, 0, 0.015, 0),

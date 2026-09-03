@@ -746,7 +746,13 @@ export const useStudio = create<StudioState>((set, get) => ({
       for (const id of Object.keys(slots)) {
         const cur = slots[id];
         if (!cur) continue;
-        slots[id] = { ...cur, visible: cur.variant !== "none" };
+        // refresh also strips every weapon + extra part back to none
+        const grp = SLOT_BY_ID[id]?.group;
+        if (grp === "weapon" || grp === "extra") {
+          slots[id] = { ...cur, variant: "none", visible: false };
+        } else {
+          slots[id] = { ...cur, visible: cur.variant !== "none" };
+        }
       }
       return {
         slots,
