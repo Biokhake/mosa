@@ -33,12 +33,15 @@ function greaveKind(brief: Brief): PrimKind {
 
 function frameLayer(ctx: Ctx) {
   const { rig, out, brief, prop } = ctx;
-  const railGap = rig.girth * 0.26;
-  const railR = rig.girth * 0.075;
+  const { rails, actuator } = rig.load;
   const bevel = prop.bevel;
 
-  // dual structural rails (tibia / fibula) — visible only as far as frameExposure
-  for (const sx of [-1, 1]) {
+  // structural rails — count + section are LOAD-DRIVEN (recon: one slim spar;
+  // bruiser: two fat rails + a diagonal brace).
+  const railR = rails.section;
+  const railGap = rig.girth * 0.26;
+  const xs = rails.count === 1 ? [0] : [-1, 1];
+  for (const sx of xs) {
     out.push({
       kind: "cyl",
       role: "mechanism",
@@ -49,42 +52,63 @@ function frameLayer(ctx: Ctx) {
       bevel,
     });
   }
-  // knee rotary drum (axis along X)
+  if (rails.braced) {
+    out.push({
+      kind: "cyl",
+      role: "metal",
+      size: [railR * 0.6, railR * 0.6, rig.length * 0.7],
+      pos: [0, 0, -rig.girth * 0.16],
+      rot: [0.32, 0, 0],
+      sides: 8,
+      tier: "frame",
+      zone: "frame",
+      bevel,
+    });
+  }
+
+  // knee rotary drum — radius from the knee torque
+  const kd = actuator.knee;
   out.push({
     kind: "cyl",
     role: "frame",
-    size: [rig.girth * 0.34, rig.girth * 0.34, rig.girth * 0.5],
-    pos: [0, rig.kneeY - rig.girth * 0.1, -rig.girth * 0.05],
+    size: [kd.drumRadius, kd.drumRadius, kd.drumWidth],
+    pos: [0, rig.kneeY - kd.drumRadius * 0.3, -rig.girth * 0.05],
     rot: [0, 0, HALF_PI],
     sides: 16,
     tier: "frame",
     zone: "joint",
     bevel,
   });
-  // ankle rotary drum
+  // ankle rotary drum — radius from the ankle torque
+  const ad = actuator.ankle;
   out.push({
     kind: "cyl",
     role: "frame",
-    size: [rig.girth * 0.26, rig.girth * 0.26, rig.girth * 0.42],
-    pos: [0, rig.ankleY + rig.girth * 0.06, 0],
+    size: [ad.drumRadius, ad.drumRadius, ad.drumWidth],
+    pos: [0, rig.ankleY + ad.drumRadius * 0.4, 0],
     rot: [0, 0, HALF_PI],
     sides: 14,
     tier: "frame",
     zone: "joint",
     bevel,
   });
-  // front flexor actuator
-  const flexLen = rig.length * (0.55 + brief.frameExposure * 0.25);
-  out.push({
-    kind: "cyl",
-    role: "mechanism",
-    size: [rig.girth * 0.09, rig.girth * 0.07, flexLen],
-    pos: [0, rig.length * 0.02, rig.girth * 0.18],
-    sides: 12,
-    tier: "frame",
-    zone: "frame",
-    bevel,
-  });
+
+  // knee flexor actuator — bore + stroke from the load; twin if the force is high
+  const fx = actuator.flexor;
+  const flexZ = rig.girth * 0.18;
+  const twinDx = fx.drive === "twin-linear" ? fx.bore * 1.5 : 0;
+  for (const sx of fx.drive === "twin-linear" ? [-1, 1] : [0]) {
+    out.push({
+      kind: "cyl",
+      role: "mechanism",
+      size: [fx.bore, fx.bore * 0.8, fx.stroke * (0.7 + brief.frameExposure * 0.3)],
+      pos: [sx * twinDx, rig.length * 0.02, flexZ],
+      sides: 12,
+      tier: "frame",
+      zone: "frame",
+      bevel,
+    });
+  }
 }
 
 interface Greave {
@@ -106,9 +130,12 @@ function greaveMass(ctx: Ctx): Greave {
   const h = topY - botY;
   const cy = (topY + botY) / 2;
 
-  const wTop = rig.girth * lerp(1.0, 1.12, brief.taper * 0.5);
-  const wBot = rig.girth * lerp(0.9, 0.62, brief.taper);
-  const depth = rig.girth * lerp(0.86, 1.02, 0.5);
+  // armour BULK is load-driven: allowance 0.4 (recon) .. 2.0 (bruiser) maps to a
+  // slim shell .. a heavy one. This is the "질량감" knob.
+  const bulk = 0.78 + (rig.load.armourAllowance - 0.4) * 0.32; // ~0.78 .. 1.29
+  const wTop = rig.girth * bulk * lerp(1.0, 1.12, brief.taper * 0.5);
+  const wBot = rig.girth * bulk * lerp(0.9, 0.62, brief.taper);
+  const depth = rig.girth * bulk * lerp(0.9, 1.06, 0.5);
   const frontZ = depth * 0.5;
   const kind = greaveKind(brief);
 

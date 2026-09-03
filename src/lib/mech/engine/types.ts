@@ -165,6 +165,44 @@ export interface MetricVector {
   detailZoneCompliance: number;
 }
 
+/** How a joint is driven, sized from the load it must resist. */
+export interface ActuatorSpec {
+  drive: "rotary" | "linear" | "twin-linear";
+  /** required torque (relative units) after dynamic + safety factors */
+  torque: number;
+  /** rotary: drum radius / width */
+  drumRadius: number;
+  drumWidth: number;
+  /** linear: bore radius, stroke length, moment arm at neutral */
+  bore: number;
+  stroke: number;
+  arm: number;
+}
+
+/** A structural member (frame rail / beam), sized from the load it carries. */
+export interface MemberSpec {
+  /** beam radius / half-section */
+  section: number;
+  /** how many parallel members */
+  count: number;
+  /** add a diagonal cross-brace under heavy load */
+  braced: boolean;
+}
+
+/** The structural picture for one part — drives the frame + shell dimensions. */
+export interface LoadReport {
+  /** per-joint required torque (relative) */
+  jointTorque: Record<string, number>;
+  /** per-joint actuator spec */
+  actuator: Record<string, ActuatorSpec>;
+  /** the part's own structural rails */
+  rails: MemberSpec;
+  /** armour mass allowance for this part (relative) — governs shell bulk */
+  armourAllowance: number;
+  /** total moved mass this part's proximal joint carries */
+  carriedMass: number;
+}
+
 export interface FunctionalReport {
   /** ROM sweep found no self-collision */
   romOk: boolean;
@@ -175,6 +213,8 @@ export interface FunctionalReport {
   mass: number;
   /** local centre of mass */
   com: [number, number, number];
+  /** the structural / load solution the part was sized from */
+  load: LoadReport;
 }
 
 /** The full output for one designed slot. */

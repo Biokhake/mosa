@@ -24,6 +24,7 @@ import { buildShinRig } from "./skeleton";
 import { grammarShin } from "./grammar/shin";
 import { romSweepShin } from "./mechanics/romSweep";
 import { massReportShin } from "./mechanics/mass";
+import { solveShinLoad } from "./mechanics/loadSolver";
 import { measureMetrics, classifyBand } from "./classify";
 import type { Brief, KitArtifact, SlotArtifact, SlotId } from "./types";
 
@@ -37,7 +38,8 @@ export function designSlot(slot: SlotId, brief: Brief): SlotArtifact | null {
   const prop = resolveProportions(brief);
 
   if (slot === "shin") {
-    const rig = buildShinRig(brief, prop);
+    const load = solveShinLoad(brief, prop);
+    const rig = buildShinRig(brief, prop, load);
     const prims = grammarShin(brief, prop, rig);
     const rom = romSweepShin(prims, rig);
     const mass = massReportShin(prims, rig);
@@ -52,6 +54,7 @@ export function designSlot(slot: SlotId, brief: Brief): SlotArtifact | null {
         jointMoment: mass.jointMoment,
         mass: mass.mass,
         com: mass.com,
+        load,
       },
     };
   }

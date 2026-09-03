@@ -8,7 +8,7 @@
  */
 
 import { lerp } from "./rng";
-import type { Brief, Proportions, Joint, Hardpoint } from "./types";
+import type { Brief, Proportions, Joint, Hardpoint, LoadReport } from "./types";
 
 export interface ShinRig {
   /** local length of the shin segment (knee pivot -> ankle pivot) */
@@ -24,11 +24,13 @@ export interface ShinRig {
    * clears through the ankle's range — a functional, not arbitrary, number.
    */
   ankleClearance: number;
+  /** the load solution the frame + shell are sized from */
+  load: LoadReport;
   joints: Joint[];
   hardpoints: Hardpoint[];
 }
 
-export function buildShinRig(brief: Brief, prop: Proportions): ShinRig {
+export function buildShinRig(brief: Brief, prop: Proportions, load: LoadReport): ShinRig {
   const length = prop.segLength.shin! * prop.unit;
   const girth = prop.segGirth.shin! * prop.unit;
 
@@ -39,16 +41,20 @@ export function buildShinRig(brief: Brief, prop: Proportions): ShinRig {
   // ankle dorsiflexion range widens for agile roles -> needs more clearance
   const dorsi = lerp(0.35, 0.6, brief.role === "skirmisher" || brief.role === "recon" ? 0.9 : 0.3);
   const plantar = 0.55;
-  // clearance = how far the foot's top-front swings toward the shin at full
-  // dorsiflexion + a fixed safety gap. Sized so the ROM sweep passes.
-  const ankleClearance = girth * 0.9 * Math.sin(dorsi) + length * 0.2;
+  // clearance = foot swing at full dorsiflexion + safety gap, PLUS room for the
+  // ankle drum, which is now sized by load (a bruiser's drum is much bigger).
+  const ankleClearance =
+    girth * 0.9 * Math.sin(dorsi) + length * 0.18 + load.actuator.ankle.drumRadius * 0.9;
+
+  // a bulkier calf (heavy armour) shortens deep knee flexion slightly
+  const kneeMax = lerp(2.3, 1.9, Math.min(1, (load.armourAllowance - 0.4) / 1.6));
 
   const joints: Joint[] = [
     {
       id: "knee",
       pivot: [0, kneeY, -girth * 0.15],
       axis: [1, 0, 0],
-      range: [-0.05, 2.3], // knee only flexes back
+      range: [-0.05, kneeMax],
       neutral: 0,
     },
     {
@@ -79,5 +85,5 @@ export function buildShinRig(brief: Brief, prop: Proportions): ShinRig {
     },
   ];
 
-  return { length, girth, kneeY, ankleY, ankleClearance, joints, hardpoints };
+  return { length, girth, kneeY, ankleY, ankleClearance, load, joints, hardpoints };
 }
