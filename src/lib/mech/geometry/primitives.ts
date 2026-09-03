@@ -346,10 +346,10 @@ export function lume(
 ): Spec[] {
   return [
     // recessed bezel cup — the frame the light sits in
-    C("dark", rad * 1.85, rad * 1.85, depth, x, y, z, rx, ry, rz, seg),
-    C("metal", rad * 1.4, rad * 1.4, depth * 0.55, x, y, z, rx, ry, rz, seg),
-    // the lens itself, only slightly proud of the cup
-    C(glowMat, rad, rad * 0.9, depth * 1.1, x, y, z, rx, ry, rz, seg),
+    C("dark", rad * 1.9, rad * 1.9, depth, x, y, z, rx, ry, rz, seg),
+    C("metal", rad * 1.45, rad * 1.45, depth * 1.02, x, y, z, rx, ry, rz, seg),
+    // the lens, sunk INSIDE the cup (shorter than the bezel)
+    C(glowMat, rad, rad * 0.88, depth * 0.7, x, y, z, rx, ry, rz, seg),
   ];
 }
 
@@ -516,7 +516,9 @@ export function makeSkeletalTruss(
 
 /**
  * Standoff Armor Plate Layer (for M~Z Ornate Kits).
- * Adds a floating geometric armor plate elevated above the frame with visible mounting studs.
+ * An outer armour plate held a short way off the frame by a solid central
+ * mounting boss and four chunky corner bolts — it reads as bolted-on hardware,
+ * not a plate hanging in the air.
  */
 export function makeStandoffArmor(
   recipe: Recipe,
@@ -534,26 +536,26 @@ export function makeStandoffArmor(
 ): Spec[] {
   if (!recipe.ornate) return [];
 
-  const plateThick = Math.max(0.014, d * 0.28);
+  const gap = Math.min(standoffDist, 0.018);
+  const plateThick = Math.max(0.016, d * 0.32);
+  const boltLen = gap + plateThick;
+  const boltAxis = rx + Math.PI / 2;
   const out: Spec[] = [
-    // Floating Outer Armor Plate
-    mass(recipe, mArmor, w, h, plateThick, x, y, z + standoffDist, rx, ry, rz),
-    // Corner Mounting Standoff Studs / Fasteners
-    C("metal", 0.009, 0.009, standoffDist * 1.5, x - w * 0.38, y + h * 0.36, z + standoffDist * 0.5, rx + Math.PI / 2, ry, rz, 6),
-    C("metal", 0.009, 0.009, standoffDist * 1.5, x + w * 0.38, y + h * 0.36, z + standoffDist * 0.5, rx + Math.PI / 2, ry, rz, 6),
-    C("metal", 0.009, 0.009, standoffDist * 1.5, x - w * 0.38, y - h * 0.36, z + standoffDist * 0.5, rx + Math.PI / 2, ry, rz, 6),
-    C("metal", 0.009, 0.009, standoffDist * 1.5, x + w * 0.38, y - h * 0.36, z + standoffDist * 0.5, rx + Math.PI / 2, ry, rz, 6),
+    // solid central mounting boss — the plate is unmistakably attached
+    C("joint", Math.min(w, h) * 0.22, Math.min(w, h) * 0.22, boltLen, x, y, z + gap * 0.5, boltAxis, ry, rz, 10),
+    // outer armour plate
+    mass(recipe, mArmor, w, h, plateThick, x, y, z + gap + plateThick * 0.5, rx, ry, rz),
+    // four chunky corner bolts
+    C("metal", 0.013, 0.013, boltLen, x - w * 0.38, y + h * 0.36, z + gap * 0.5, boltAxis, ry, rz, 6),
+    C("metal", 0.013, 0.013, boltLen, x + w * 0.38, y + h * 0.36, z + gap * 0.5, boltAxis, ry, rz, 6),
+    C("metal", 0.013, 0.013, boltLen, x - w * 0.38, y - h * 0.36, z + gap * 0.5, boltAxis, ry, rz, 6),
+    C("metal", 0.013, 0.013, boltLen, x + w * 0.38, y - h * 0.36, z + gap * 0.5, boltAxis, ry, rz, 6),
   ];
 
-  // High density add-on: Reactive Armor / Aerodynamic Slat
-  if (recipe.density >= 6) {
+  // High density add-on: reactive-armour rib bonded to the plate face
+  if (recipe.density >= 7) {
     out.push(
-      B("trim", w * 0.7, h * 0.12, plateThick * 1.25, x, y, z + standoffDist + plateThick * 0.6, rx, ry, rz),
-    );
-  }
-  if (recipe.density >= 9) {
-    out.push(
-      B("acc", w * 0.14, h * 0.65, plateThick * 1.3, x, y, z + standoffDist + plateThick * 0.65, rx, ry, rz),
+      B("trim", w * 0.66, h * 0.12, plateThick * 0.9, x, y, z + gap + plateThick, rx, ry, rz),
     );
   }
 

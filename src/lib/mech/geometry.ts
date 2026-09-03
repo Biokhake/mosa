@@ -89,106 +89,6 @@ function ensureLR(specs: Spec[], eps = 0.012): Spec[] {
   return out;
 }
 
-function primBounds(specs: Spec[]) {
-  const src = specs.filter((s) => s.m === "prim");
-  const use = src.length ? src : specs;
-  let minX = Infinity,
-    minY = Infinity,
-    minZ = Infinity,
-    maxX = -Infinity,
-    maxY = -Infinity,
-    maxZ = -Infinity;
-  for (const s of use) {
-    let hx: number;
-    let hy: number;
-    let hz: number;
-    if (s.t === "box") {
-      hx = s.s[0] / 2;
-      hy = s.s[1] / 2;
-      hz = s.s[2] / 2;
-    } else if (s.t === "cyl" || s.t === "cone" || s.t === "capsule") {
-      const rad = Math.max(s.s[0], s.s[1] || 0);
-      const hh = (s.s[2] || 0.08) / 2;
-      const rx = s.r?.[0] ?? 0;
-      if (Math.abs(Math.abs(rx) - Math.PI / 2) < 0.3) {
-        hx = rad;
-        hy = rad;
-        hz = hh;
-      } else {
-        hx = rad;
-        hy = hh;
-        hz = rad;
-      }
-    } else {
-      const rad = s.s[0] || 0.05;
-      hx = hy = hz = rad;
-    }
-    minX = Math.min(minX, s.p[0] - hx);
-    maxX = Math.max(maxX, s.p[0] + hx);
-    minY = Math.min(minY, s.p[1] - hy);
-    maxY = Math.max(maxY, s.p[1] + hy);
-    minZ = Math.min(minZ, s.p[2] - hz);
-    maxZ = Math.max(maxZ, s.p[2] + hz);
-  }
-  if (!Number.isFinite(minX)) {
-    return { cx: 0, cy: 0, cz: 0, w: 0.12, h: 0.12, d: 0.12, minY: -0.06, maxY: 0.06 };
-  }
-  return {
-    cx: (minX + maxX) / 2,
-    cy: (minY + maxY) / 2,
-    cz: (minZ + maxZ) / 2,
-    w: Math.max(0.04, maxX - minX),
-    h: Math.max(0.04, maxY - minY),
-    d: Math.max(0.04, maxZ - minZ),
-    minY,
-    maxY,
-  };
-}
-
-
-const NO_DRESS = new Set([
-  // joints — self-contained mechanical parts
-  "elbow", "knee", "hip", "ankle",
-  // every head feature — each is authored complete; generic dressing here
-  // just produces small boxes floating off the face.
-  "helm", "visor", "brow", "eye", "nose", "mouth", "jaw", "ear", "vfin", "antenna", "cheek", "chin",
-  // kit-factory parts — these already carry their full seated Part-2 layer
-  // (layeredAccents); a second generic pass just makes shapes interfere.
-  "shoulder", "shin", "foot", "cockpit", "skirt", "vambrace", "pack",
-]);
-
-/**
- * Generic Part-2 dressing.
- *
- * Feedback pass: this used to scatter free-standing boxes / spheres / cones
- * off the surface (and stack a second decoration onto parts that already had
- * one). It now only ever cuts flush panel-line grooves into the front face —
- * thin dark insets that sit ON the shell, never in the air — so density reads
- * as surface detail and nothing can float or interfere.
- */
-function dressPart2(prim: Spec[], r: Recipe, slotId: string): Spec[] {
-  if (!prim.length) return [];
-  if (NO_DRESS.has(base(slotId))) return [];
-
-  const { cx, cy, cz, w, h, d } = primBounds(prim);
-  const grooves = Math.min(4, Math.floor((r.density + 1) / 3)); // 0..4
-  if (grooves <= 0) return [];
-
-  const out: Spec[] = [];
-  const gt = Math.max(0.006, h * 0.03); // groove thickness
-  const gd = Math.max(0.006, d * 0.06); // groove depth (shallow, embedded)
-  const zf = cz + d * 0.5 - gd * 0.35; // flush with the front face
-  for (let i = 0; i < grooves; i++) {
-    const f = grooves === 1 ? 0.5 : i / (grooves - 1);
-    const yy = cy + (f - 0.5) * h * 0.66;
-    out.push(B("dark", w * 0.6, gt, gd, cx, yy, zf, 0, 0, 0));
-  }
-  // one vertical seam for the denser kits
-  if (r.density >= 7) {
-    out.push(B("dark", Math.max(0.006, w * 0.03), h * 0.5, gd, cx, cy, zf, 0, 0, 0));
-  }
-  return out;
-}
 
 /**
  * Master Prompt 8.0 —묘수 2: shields must have real mass, never a flat plane.
@@ -354,8 +254,10 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
   }
 
   const isSideSlot = isLeftSlot(slotId) || /R$/.test(slotId) || slotId.endsWith("L") || slotId.endsWith("R");
-  const dressed = [...raw, ...dressPart2(raw, r, slotId)];
-  return isSideSlot ? dressed : ensureLR(dressed);
+  // Every part now authors its own Part-2 detail (kit-factory layeredAccents,
+  // hand-built torso/limb/head geometry). The old generic dressing pass only
+  // scattered floating / duplicated shapes, so it is gone.
+  return isSideSlot ? raw : ensureLR(raw);
 }
 
 export function disposePart(group: THREE.Group) {

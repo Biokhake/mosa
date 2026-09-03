@@ -8,7 +8,6 @@ import {
   Trap,
   makeServoActuator,
   makeRotaryServo,
-  makeStandoffArmor,
   makeCoolingFins,
   lume,
   makeThrusterBell,
@@ -27,15 +26,15 @@ export function collar(r: Recipe): Spec[] {
   // Main Rotary Neck Bearing Turntable
   out.push(...makeRotaryServo("joint", "metal", 0, 0, 0, 0.09 * t, 0.035, 0, 0, 0, s));
 
-  // Twin Cervical Linear Tilt Actuators (Hydraulic neck pistons)
+  // Twin Cervical Linear Tilt Actuators — short, tucked under the armor rim
   out.push(
-    ...makeServoActuator("dark", "metal", 0.045 * t, 0.02, 0.015, 0.09, 0.012, 0.25, 0, 0, 8),
-    ...makeServoActuator("dark", "metal", -0.045 * t, 0.02, 0.015, 0.09, 0.012, 0.25, 0, 0, 8),
+    ...makeServoActuator("dark", "metal", 0.045 * t, -0.01, 0.015, 0.055, 0.011, 0.25, 0, 0, 8),
+    ...makeServoActuator("dark", "metal", -0.045 * t, -0.01, 0.015, 0.055, 0.011, 0.25, 0, 0, 8),
   );
 
   // Collar Armor Rim
   out.push(
-    B("prim", 0.22 * t, 0.04, 0.18, 0, -0.01, 0),
+    B("prim", 0.22 * t, 0.05, 0.18, 0, 0, 0),
   );
 
   if (r.ornate) {
@@ -85,22 +84,18 @@ export function chestCore(r: Recipe): Spec[] {
   // the accent tier crosses to a different primitive than the square base.
   const dna = generateKitDNA(r.code.id);
   const zv = dna.zVolume;
+  // A solid seated breastplate (never a lid on studs) + a sculpted central
+  // mass + one framed intake. Ornate kits get a thicker layered plate.
+  const plateD = Math.max(0.045, 0.05 * zv * (r.ornate ? 1 : 0.8));
+  out.push(
+    B("prim", (r.ornate ? 0.32 : 0.3) * t, 0.18, plateD, 0, 0.01, 0.12),
+    Wedge("prim", 0.19 * t, 0.14, 0.05 * zv, 0, 0.02, 0.12 + plateD * 0.4, 0.18, 0, 0),
+    // framed central intake, recessed into the plate
+    C("dark", 0.052 * t, 0.052 * t, 0.06 * zv, 0, -0.03, 0.12 + plateD * 0.2, Math.PI / 2, 0, 0, 12),
+    C("glow", 0.03 * t, 0.03 * t, 0.05 * zv, 0, -0.03, 0.12 + plateD * 0.2, Math.PI / 2, 0, 0, 10),
+  );
   if (r.ornate) {
-    out.push(
-      ...makeStandoffArmor(r, "prim", 0.34 * t, 0.2, 0.06 * zv * 0.6, 0, 0.01, 0.13, 0.035),
-      // central sculpted mass — wedge, not a lid
-      Wedge("prim", 0.2 * t, 0.15, 0.05 * zv, 0, 0.02, 0.15, 0.2, 0, 0),
-      B("sec", 0.26 * t, 0.14, 0.04, 0, 0.01, 0.18 + 0.03 * zv),
-      // cross-combined cylindrical intake stack over the square plate
-      C("dark", 0.05 * t, 0.05 * t, 0.06 * zv, 0, -0.03, 0.16, Math.PI / 2, 0, 0, 12),
-      C("glow", 0.03 * t, 0.03 * t, 0.02, 0, -0.03, 0.16 + 0.03 * zv, Math.PI / 2, 0, 0, 10),
-    );
-  } else {
-    out.push(
-      B("prim", 0.3 * t, 0.16, 0.05 * zv * 0.7, 0, 0.01, 0.13),
-      Wedge("prim", 0.18 * t, 0.13, 0.045 * zv, 0, 0.02, 0.15, 0.18, 0, 0),
-      C("dark", 0.045 * t, 0.045 * t, 0.05 * zv, 0, -0.03, 0.15, Math.PI / 2, 0, 0, 10),
-    );
+    out.push(B("sec", 0.24 * t, 0.12, 0.035, 0, 0.06, 0.12 + plateD * 0.55));
   }
 
   return out;
@@ -202,18 +197,14 @@ export function abdomen(r: Recipe): Spec[] {
     Torus("dark", 0.08 * t, 0.01, 0, 0, -0.04, 0, Math.PI / 2, 0),
   );
 
-  // Abdominal Armor Plating (A~L vs M~Z)
+  // Abdominal Armor Plating — a solid seated plate, thicker + layered for M~Z.
   if (r.ornate) {
     out.push(
-      // Floating abdominal segmented plates
-      ...makeStandoffArmor(r, "prim", 0.15 * t, abdLen * 0.7, 0.04, 0, 0, 0.07, 0.025),
-      B("sec", 0.18 * t, abdLen * 0.45, 0.08, 0, 0, 0.02),
+      B("prim", 0.17 * t, abdLen * 0.7, 0.055, 0, 0, 0.055),
+      B("sec", 0.13 * t, abdLen * 0.5, 0.03, 0, 0, 0.085),
     );
   } else {
-    // A~L: Bare skeletal lumbar cage
-    out.push(
-      B("prim", 0.16 * t, 0.03, 0.12, 0, 0, 0.04),
-    );
+    out.push(B("prim", 0.16 * t, 0.03, 0.1, 0, 0, 0.045));
   }
 
   return out;
@@ -300,11 +291,11 @@ export function skirtB(r: Recipe): Spec[] {
   );
 
   if (r.ornate) {
-    // rear deflector + twin thruster bells housed under the skirt lip
+    // rear deflector + twin thruster bells set into its underside
     out.push(
-      Trap("sec", 0.15 * t, 0.1, 0.025, 0, -0.035, -0.06, 0.25, 0, 0),
-      ...makeThrusterBell("metal", 0.022, 0.05, -0.05 * t, -0.05, -0.05, -0.5, 0, 0, 8),
-      ...makeThrusterBell("metal", 0.022, 0.05, 0.05 * t, -0.05, -0.05, -0.5, 0, 0, 8),
+      Trap("sec", 0.15 * t, 0.1, 0.03, 0, -0.035, -0.055, 0.25, 0, 0),
+      ...makeThrusterBell("metal", 0.02, 0.045, -0.045 * t, -0.055, -0.055, Math.PI - 0.35, 0, 0, 8),
+      ...makeThrusterBell("metal", 0.02, 0.045, 0.045 * t, -0.055, -0.055, Math.PI - 0.35, 0, 0, 8),
     );
   }
 
