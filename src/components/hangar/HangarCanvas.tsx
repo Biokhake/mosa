@@ -14,7 +14,7 @@ import {
 } from "@/lib/mech/rig";
 import { buildPart, disposePart } from "@/lib/mech/geometry";
 import { explodeDir, DEFAULT_VISOR } from "@/lib/mech/palette";
-import { poseNodeRotation, poseRoot, type PoseId } from "@/lib/mech/poses";
+import { poseNodeRotation, poseNodeOffset, poseRoot, type PoseId } from "@/lib/mech/poses";
 import { useStudio } from "@/lib/mech/store";
 
 const DEG = Math.PI / 180;
@@ -71,15 +71,16 @@ function MechRig() {
     const parent = node.parent ? RIG_NODE_BY_ID[node.parent] : null;
     const pr = parent ? parent.rest : ([0, 0, 0] as const);
     const pose = poseNodeRotation(id, poseId);
+    const poff = poseNodeOffset(id, poseId);
     const gx = NODE_GROUP[id] ? groupXform[NODE_GROUP[id]!] : undefined;
 
-    // node transform: rest offset from parent + pose rotation + this region's
-    // groupXform. Everything distal — this node's own slots AND its child
-    // nodes — inherits it. (Whole-body attitude is on the outer wrapper.)
+    // node transform: rest offset from parent + pose rotation/offset + this
+    // region's groupXform. Everything distal — this node's own slots AND its
+    // child nodes — inherits it. (Whole-body attitude is on the outer wrapper.)
     const position: [number, number, number] = [
-      node.rest[0] - pr[0] + (gx?.px ?? 0),
-      node.rest[1] - pr[1] + (gx?.py ?? 0),
-      node.rest[2] - pr[2] + (gx?.pz ?? 0),
+      node.rest[0] - pr[0] + poff[0] + (gx?.px ?? 0),
+      node.rest[1] - pr[1] + poff[1] + (gx?.py ?? 0),
+      node.rest[2] - pr[2] + poff[2] + (gx?.pz ?? 0),
     ];
     const rotation: [number, number, number] = [
       (pose[0] + (gx?.rx ?? 0)) * DEG,

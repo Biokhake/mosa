@@ -287,19 +287,30 @@ export function Studio() {
             }
             onReset={() => resetGroupXform(groupFilter, ["rx", "ry", "rz"])}
           />
-          <AxisSliders
-            title={uniformScale ? "Scale (Uniform)" : "Scale"}
-            x={gx.sx}
-            y={gx.sy}
-            z={gx.sz}
-            min={0.15}
-            max={2.6}
-            step={0.01}
-            onChange={(axis, v) =>
-              patchGroupXform(groupFilter, { [axis === "x" ? "sx" : axis === "y" ? "sy" : "sz"]: v })
-            }
-            onReset={() => resetGroupXform(groupFilter, ["sx", "sy", "sz"])}
-          />
+          {(() => {
+            // group scale is a x1 multiplier; show it as a delta so neutral = 0
+            const round = (n: number) => Math.round(n * 1000) / 1000;
+            return (
+              <AxisSliders
+                title={uniformScale ? "Scale Δ (Uniform)" : "Scale Δ"}
+                x={round(gx.sx - 1)}
+                y={round(gx.sy - 1)}
+                z={round(gx.sz - 1)}
+                min={-0.9}
+                max={1.4}
+                step={0.01}
+                onChange={(axis, v) =>
+                  patchGroupXform(
+                    groupFilter,
+                    uniformScale
+                      ? { sx: round(1 + v), sy: round(1 + v), sz: round(1 + v) }
+                      : { [axis === "x" ? "sx" : axis === "y" ? "sy" : "sz"]: round(1 + v) },
+                  )
+                }
+                onReset={() => resetGroupXform(groupFilter, ["sx", "sy", "sz"])}
+              />
+            );
+          })()}
         </div>
       </div>
       <div className="border-t border-border p-2">
@@ -410,17 +421,36 @@ export function Studio() {
           onChange={(axis, v) => patchSlot(selected, { [axis === "x" ? "rx" : axis === "y" ? "ry" : "rz"]: v })}
           onReset={() => patchSlot(selected, { rx: 0, ry: 0, rz: 0 })}
         />
-        <AxisSliders
-          title={uniformScale ? "Scale (Uniform)" : "Scale"}
-          x={st.sx}
-          y={st.sy}
-          z={st.sz}
-          min={0.15}
-          max={2.6}
-          step={0.01}
-          onChange={(axis, v) => patchSlot(selected, { [axis === "x" ? "sx" : axis === "y" ? "sy" : "sz"]: v })}
-          onReset={() => patchSlot(selected, defaultScaleFor(selected))}
-        />
+        {(() => {
+          // some parts carry a baked default scale; the sliders show the user's
+          // DELTA from it, so a fresh part reads 0 like Position / Rotate
+          const ds = defaultScaleFor(selected);
+          const round = (n: number) => Math.round(n * 1000) / 1000;
+          return (
+            <AxisSliders
+              title={uniformScale ? "Scale Δ (Uniform)" : "Scale Δ"}
+              x={round(st.sx - ds.sx)}
+              y={round(st.sy - ds.sy)}
+              z={round(st.sz - ds.sz)}
+              min={-0.9}
+              max={1.4}
+              step={0.01}
+              onChange={(axis, v) =>
+                patchSlot(
+                  selected,
+                  uniformScale
+                    ? { sx: round(ds.sx + v), sy: round(ds.sy + v), sz: round(ds.sz + v) }
+                    : {
+                        [axis === "x" ? "sx" : axis === "y" ? "sy" : "sz"]: round(
+                          (axis === "x" ? ds.sx : axis === "y" ? ds.sy : ds.sz) + v,
+                        ),
+                      },
+                )
+              }
+              onReset={() => patchSlot(selected, defaultScaleFor(selected))}
+            />
+          );
+        })()}
       </div>
 
       <div className="px-3 py-3">

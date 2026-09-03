@@ -38,6 +38,9 @@ export interface Pose {
   label: string;
   /** per-node [rx, ry, rz] in degrees; missing node = neutral */
   nodes: Partial<Record<RigNodeId, Vec3>>;
+  /** per-node extra [x, y, z] position offset (e.g. seat the head onto the
+   *  neck column once it tilts) */
+  nodePos?: Partial<Record<RigNodeId, Vec3>>;
   /** whole-body attitude at the root */
   root?: { pos?: Vec3; rot?: Vec3 };
 }
@@ -72,9 +75,10 @@ const RAW_POSES: Record<PoseId, Pose> = {
   flight: {
     label: "Flight",
     root: { pos: [0, 0.1, 0.0], rot: [34, 0, 0] },
+    nodePos: { neck: [0, 0, 0.11] }, // seat the head forward onto the column
     nodes: {
       torso: [-6, 0, 0],
-      neck: [-22, 0, 0],
+      neck: [-21, 0, 0],
       shoulderR: [8, 0, -18],
       elbowR: [-42, 0, 0],
       shoulderL: [8, 0, 18],
@@ -164,6 +168,11 @@ const ZERO: Vec3 = [0, 0, 0];
 /** This pose's rotation (degrees) for a node. */
 export function poseNodeRotation(nodeId: RigNodeId, poseId: PoseId): Vec3 {
   return POSES[poseId]?.nodes[nodeId] ?? ZERO;
+}
+
+/** This pose's extra position offset for a node (world units). */
+export function poseNodeOffset(nodeId: RigNodeId, poseId: PoseId): Vec3 {
+  return POSES[poseId]?.nodePos?.[nodeId] ?? ZERO;
 }
 
 /** This pose's whole-body root attitude. */
