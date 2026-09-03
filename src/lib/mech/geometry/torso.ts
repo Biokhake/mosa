@@ -95,23 +95,34 @@ export function chestCore(r: Recipe): Spec[] {
 
 /**
  * Pectoral Armor (Left / Right Breastplates).
+ * Features multi-tier dimensional air intake vents and layered armor plates.
  */
 export function pec(r: Recipe, isLeft: boolean): Spec[] {
   const t = r.thick;
   const out: Spec[] = [];
   const sign = isLeft ? -1 : 1;
 
+  // Angled pectoral strike plate (Trapezoid)
   out.push(
-    // Angled pectoral strike plate (Trapezoid)
     Trap("prim", 0.14 * t, 0.16, 0.06, 0, 0, 0.02, 0.15, sign * 0.18, 0),
-    // Intake duct
-    B("dark", 0.04 * t, 0.08, 0.05, sign * 0.03, 0, 0.03, 0.15, sign * 0.18, 0),
+    // Main Intake duct housing
+    B("dark", 0.045 * t, 0.085, 0.05, sign * 0.03, 0, 0.03, 0.15, sign * 0.18, 0),
+  );
+
+  // Multi-tier cooling vent fins (입체적 흉부 덕트 분할)
+  out.push(
+    B("metal", 0.04 * t, 0.008, 0.03, sign * 0.03, 0.025, 0.045, 0.15, sign * 0.18, 0),
+    B("metal", 0.04 * t, 0.008, 0.03, sign * 0.03, 0, 0.045, 0.15, sign * 0.18, 0),
+    B("metal", 0.04 * t, 0.008, 0.03, sign * 0.03, -0.025, 0.045, 0.15, sign * 0.18, 0),
   );
 
   if (r.ornate) {
+    // Layered composite breastplate applique
     out.push(
-      B("sec", 0.1 * t, 0.12, 0.03, 0, 0.01, 0.045, 0.15, sign * 0.18, 0),
+      Trap("sec", 0.11 * t, 0.12, 0.03, 0, 0.01, 0.05, 0.15, sign * 0.18, 0),
       B("trim", 0.12 * t, 0.015, 0.04, 0, 0.07, 0.045, 0.15, sign * 0.18, 0),
+      // Auxiliary sensor nodule
+      C("glow", 0.008, 0.008, 0.02, sign * 0.05, 0.05, 0.055, 0.15, sign * 0.18, 0, 8),
     );
   }
 
@@ -227,23 +238,38 @@ export function pelvis(r: Recipe): Spec[] {
 
 /**
  * Skirt Armor (Front, Back, Side).
+ * Layered multi-panel armor plates with articulated hinges and sub-plates.
  */
 export function skirtF(r: Recipe): Spec[] {
   const t = r.thick;
   const out: Spec[] = [];
 
-  // Front Skirt Plate (Hinged at top)
+  // Skirt Hinge Pin Assembly
   out.push(
-    // Skirt Hinge Pin
     C("metal", 0.008, 0.008, 0.18 * t, 0, 0.04, 0.03, 0, 0, Math.PI / 2, 6),
-    // Main Skirt Armor (Trapezoid)
-    Trap("prim", 0.19 * t, 0.14, 0.035, 0, -0.03, 0.04, -0.25, 0, 0),
+    // Center groin armor block
+    B("dark", 0.04 * t, 0.06, 0.03, 0, 0.02, 0.04, -0.25, 0, 0),
   );
 
+  // Dual-split Front Skirt Plates (Layer 1: Main armor flaps Left & Right)
+  const flapW = 0.09 * t;
+  const flapH = 0.14;
+  const flapD = 0.03;
+  const flapX = 0.052 * t;
+
+  out.push(
+    // Left Skirt Flap
+    Trap("prim", flapW, flapH, flapD, -flapX, -0.03, 0.04, -0.25, 0, -0.05),
+    // Right Skirt Flap
+    Trap("prim", flapW, flapH, flapD, flapX, -0.03, 0.04, -0.25, 0, 0.05),
+  );
+
+  // Layer 2: Sub-armor reinforced strike plates
   if (r.ornate) {
     out.push(
-      B("sec", 0.13 * t, 0.09, 0.025, 0, -0.03, 0.06, -0.25, 0, 0),
-      B("trim", 0.15 * t, 0.012, 0.03, 0, 0.01, 0.05, -0.25, 0, 0),
+      Trap("sec", flapW * 0.75, flapH * 0.65, 0.02, -flapX, -0.04, 0.055, -0.25, 0, -0.05),
+      Trap("sec", flapW * 0.75, flapH * 0.65, 0.02, flapX, -0.04, 0.055, -0.25, 0, 0.05),
+      B("trim", 0.16 * t, 0.012, 0.025, 0, 0.015, 0.045, -0.25, 0, 0),
     );
   }
 
@@ -254,14 +280,19 @@ export function skirtB(r: Recipe): Spec[] {
   const t = r.thick;
   const out: Spec[] = [];
 
+  // Rear Skirt Hinge
   out.push(
     C("metal", 0.008, 0.008, 0.18 * t, 0, 0.04, -0.03, 0, 0, Math.PI / 2, 6),
-    B("prim", 0.2 * t, 0.15, 0.035, 0, -0.03, -0.04, 0.25, 0, 0),
+    // Main Rear Skirt Plate (Trapezoid sloped downward)
+    Trap("prim", 0.20 * t, 0.15, 0.035, 0, -0.03, -0.04, 0.25, 0, 0),
   );
 
   if (r.ornate) {
+    // Layered composite rear deflector & thruster shroud
     out.push(
-      B("sec", 0.14 * t, 0.1, 0.025, 0, -0.03, -0.06, 0.25, 0, 0),
+      Trap("sec", 0.15 * t, 0.10, 0.025, 0, -0.035, -0.06, 0.25, 0, 0),
+      C("glow", 0.018, 0.018, 0.03, -0.05 * t, -0.07, -0.055, 0.35, 0, 0, 8),
+      C("glow", 0.018, 0.018, 0.03, 0.05 * t, -0.07, -0.055, 0.35, 0, 0, 8),
     );
   }
 

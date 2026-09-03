@@ -160,12 +160,19 @@ export function forearm(r: Recipe, _isLeft = false): Spec[] {
       ...makeStandoffArmor(r, "prim", 0.12 * t, armLen * 0.72, 0.06, 0, 0, 0.042 * t, 0.028),
       B("sec", 0.14 * t, armLen * 0.55, 0.11 * t, 0, 0.02, 0),
       ...makeCoolingFins("metal", 0.09 * t, 0.05, 0.02, 0, 0.03, -0.055 * t, 3, "y"),
+      // NATO Picatinny Hardpoint Mount Rail
+      B("dark", 0.025 * t, armLen * 0.45, 0.02, 0, 0, 0.065 * t),
+      B("metal", 0.032 * t, 0.012, 0.025, 0, armLen * 0.15, 0.065 * t),
+      B("metal", 0.032 * t, 0.012, 0.025, 0, 0, 0.065 * t),
+      B("metal", 0.032 * t, 0.012, 0.025, 0, -armLen * 0.15, 0.065 * t),
     );
   } else {
     out.push(
       B("prim", 0.11 * t, armLen * 0.5, 0.09 * t, 0, 0, 0),
       // Open window revealing the inner dual rails and piston
       B("dark", 0.07 * t, armLen * 0.35, 0.11 * t, 0, 0, 0),
+      // Hardpoint mount wedge
+      B("metal", 0.025 * t, armLen * 0.25, 0.018, 0, 0, 0.055 * t),
     );
   }
 

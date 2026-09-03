@@ -10,7 +10,6 @@ import { B, C, Sp, N } from "./geometry/primitives";
 
 // Modular Geometry Generators
 import {
-  helm,
   visor,
   brow,
   eye,
@@ -28,23 +27,17 @@ import {
   collar,
   chestCore,
   pec,
-  cockpit,
   abdomen,
   pelvis,
   skirtF,
   skirtB,
-  skirtS,
 } from "./geometry/torso";
 
 import {
-  shoulder,
   upper,
   forearm,
-  vambrace,
   hand,
   thigh,
-  shin,
-  foot,
 } from "./geometry/limbs";
 
 import {
@@ -55,7 +48,6 @@ import {
 } from "./geometry/joints";
 
 import {
-  pack,
   thruster,
   binder,
   stabilizer,
@@ -63,6 +55,8 @@ import {
   shieldSpecs,
   extraSpecs,
 } from "./geometry/equipment";
+
+import { createGeometryByID } from "./geometry/kitFactory";
 
 export type { Spec };
 
@@ -299,7 +293,7 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
 
   switch (b) {
     case "helm":
-      raw = helm(r);
+      raw = createGeometryByID(variant, slotId, isLeft, r);
       break;
     case "visor":
       raw = visor(r);
@@ -344,7 +338,7 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
       raw = pec(r, isLeft);
       break;
     case "cockpit":
-      raw = cockpit(r);
+      raw = createGeometryByID(variant, slotId, isLeft, r);
       break;
     case "abdomen":
       raw = abdomen(r);
@@ -359,10 +353,10 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
       raw = skirtB(r);
       break;
     case "skirt":
-      raw = skirtS(r, isLeft);
+      raw = createGeometryByID(variant, slotId, isLeft, r);
       break;
     case "shoulder":
-      raw = shoulder(r, isLeft);
+      raw = createGeometryByID(variant, slotId, isLeft, r);
       break;
     case "upper":
       raw = upper(r, isLeft);
@@ -374,7 +368,7 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
       raw = forearm(r, isLeft);
       break;
     case "vambrace":
-      raw = vambrace(r, isLeft);
+      raw = createGeometryByID(variant, slotId, isLeft, r);
       break;
     case "hand":
       raw = hand(r, isLeft);
@@ -389,16 +383,16 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
       raw = knee(r, isLeft);
       break;
     case "shin":
-      raw = shin(r, isLeft);
+      raw = createGeometryByID(variant, slotId, isLeft, r);
       break;
     case "ankle":
       raw = ankle(r, isLeft);
       break;
     case "foot":
-      raw = foot(r, isLeft);
+      raw = createGeometryByID(variant, slotId, isLeft, r);
       break;
     case "pack":
-      raw = pack(r);
+      raw = createGeometryByID(variant, slotId, isLeft, r);
       break;
     case "thruster":
       raw = thruster(r);
@@ -413,7 +407,9 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
       raw = [B("prim", 0.12, 0.12, 0.12, 0, 0, 0)];
   }
 
-  return ensureLR([...raw, ...dressPart2(raw, r, slotId)]);
+  const isSideSlot = isLeftSlot(slotId) || /R$/.test(slotId) || slotId.endsWith("L") || slotId.endsWith("R");
+  const dressed = [...raw, ...dressPart2(raw, r, slotId)];
+  return isSideSlot ? dressed : ensureLR(dressed);
 }
 
 export function disposePart(group: THREE.Group) {
@@ -536,6 +532,190 @@ function createTrapezoidGeometry(wTop: number, wBot: number, h: number, d = 0.04
   return geo;
 }
 
+function createCowlGeometry(w: number, h: number, d: number): THREE.BufferGeometry {
+  const hw = w / 2;
+  const hh = h / 2;
+  const hd = d / 2;
+  const vertices = new Float32Array([
+    // Front Nose Wedge (Left)
+    -hw * 0.4, -hh * 0.6, hd,   0, -hh * 0.6, hd * 1.1,   0, hh * 0.6, hd * 0.9,
+    -hw * 0.4, -hh * 0.6, hd,   0, hh * 0.6, hd * 0.9,  -hw * 0.5, hh * 0.7, hd * 0.6,
+    // Front Nose Wedge (Right)
+     0, -hh * 0.6, hd * 1.1,   hw * 0.4, -hh * 0.6, hd,   hw * 0.5, hh * 0.7, hd * 0.6,
+     0, -hh * 0.6, hd * 1.1,   hw * 0.5, hh * 0.7, hd * 0.6,   0, hh * 0.6, hd * 0.9,
+    // Top Crest (Left)
+    -hw * 0.5, hh * 0.7, hd * 0.6,   0, hh * 0.6, hd * 0.9,   0, hh * 1.1, -hd * 0.2,
+    -hw * 0.5, hh * 0.7, hd * 0.6,   0, hh * 1.1, -hd * 0.2,  -hw * 0.85, hh * 0.9, -hd * 0.4,
+    // Top Crest (Right)
+     0, hh * 0.6, hd * 0.9,   hw * 0.5, hh * 0.7, hd * 0.6,   hw * 0.85, hh * 0.9, -hd * 0.4,
+     0, hh * 0.6, hd * 0.9,   hw * 0.85, hh * 0.9, -hd * 0.4,   0, hh * 1.1, -hd * 0.2,
+    // Rear Cranium Dome
+     0, hh * 1.1, -hd * 0.2,   hw * 0.85, hh * 0.9, -hd * 0.4,   0, hh * 0.8, -hd,
+     0, hh * 1.1, -hd * 0.2,   0, hh * 0.8, -hd,  -hw * 0.85, hh * 0.9, -hd * 0.4,
+    -hw * 0.85, hh * 0.9, -hd * 0.4,   0, hh * 0.8, -hd,   0, -hh * 0.7, -hd,
+    -hw * 0.85, hh * 0.9, -hd * 0.4,   0, -hh * 0.7, -hd,  -hw * 0.9, -hh * 0.7, -hd * 0.5,
+     0, hh * 0.8, -hd,   hw * 0.85, hh * 0.9, -hd * 0.4,   hw * 0.9, -hh * 0.7, -hd * 0.5,
+     0, hh * 0.8, -hd,   hw * 0.9, -hh * 0.7, -hd * 0.5,   0, -hh * 0.7, -hd,
+    // Left Flank
+    -hw * 0.4, -hh * 0.6, hd,  -hw * 0.5, hh * 0.7, hd * 0.6,  -hw * 0.85, hh * 0.9, -hd * 0.4,
+    -hw * 0.4, -hh * 0.6, hd,  -hw * 0.85, hh * 0.9, -hd * 0.4,  -hw * 0.9, -hh * 0.7, -hd * 0.5,
+    // Right Flank
+     hw * 0.5, hh * 0.7, hd * 0.6,   hw * 0.4, -hh * 0.6, hd,   hw * 0.9, -hh * 0.7, -hd * 0.5,
+     hw * 0.5, hh * 0.7, hd * 0.6,   hw * 0.9, -hh * 0.7, -hd * 0.5,   hw * 0.85, hh * 0.9, -hd * 0.4,
+    // Bottom Base
+    -hw * 0.4, -hh * 0.6, hd,  -hw * 0.9, -hh * 0.7, -hd * 0.5,   0, -hh * 0.7, -hd,
+    -hw * 0.4, -hh * 0.6, hd,   0, -hh * 0.7, -hd,   0, -hh * 0.6, hd * 1.1,
+     0, -hh * 0.6, hd * 1.1,   0, -hh * 0.7, -hd,   hw * 0.9, -hh * 0.7, -hd * 0.5,
+     0, -hh * 0.6, hd * 1.1,   hw * 0.9, -hh * 0.7, -hd * 0.5,   hw * 0.4, -hh * 0.6, hd,
+  ]);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function createClawGeometry(w: number, h: number, d: number): THREE.BufferGeometry {
+  const hw = w / 2;
+  const hh = h / 2;
+  const hd = d / 2;
+  const vertices = new Float32Array([
+    -hw, -hh, -hd,   hw, -hh, -hd,   0, -hh * 0.5, hd,
+    -hw, -hh, -hd,   0, -hh * 0.5, hd,   0, hh, -hd * 0.2,
+     hw, -hh, -hd,   0, hh, -hd * 0.2,   0, -hh * 0.5, hd,
+    -hw, -hh, -hd,   hw, -hh, -hd,   0, hh, -hd * 0.2,
+  ]);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function createHighHeelGeometry(w: number, h: number, d: number): THREE.BufferGeometry {
+  const hw = w / 2;
+  const hh = h / 2;
+  const hd = d / 2;
+  const vertices = new Float32Array([
+    -hw * 0.8, -hh * 0.3, hd,   hw * 0.8, -hh * 0.3, hd,   0, -hh * 0.2, hd * 1.2,
+    -hw * 0.8, -hh * 0.3, hd,   0, -hh * 0.2, hd * 1.2,   0, hh, 0,
+     hw * 0.8, -hh * 0.3, hd,   0, hh, 0,   0, -hh * 0.2, hd * 1.2,
+    -hw, hh * 0.6, -hd * 0.5,   hw, hh * 0.6, -hd * 0.5,   0, hh, 0,
+    -hw * 0.4, -hh, -hd * 0.6,   hw * 0.4, -hh, -hd * 0.6,   0, hh * 0.6, -hd * 0.5,
+    -hw * 0.4, -hh, -hd * 0.6,   0, hh * 0.6, -hd * 0.5,   0, -hh, -hd * 0.3,
+     hw * 0.4, -hh, -hd * 0.6,   0, -hh, -hd * 0.3,   0, hh * 0.6, -hd * 0.5,
+  ]);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function createHoverGeometry(w: number, h: number, d: number): THREE.BufferGeometry {
+  const hw = w / 2;
+  const hh = h / 2;
+  const hd = d / 2;
+  const vertices = new Float32Array([
+    -hw * 0.8, hh, hd * 0.8,   hw * 0.8, hh, hd * 0.8,   hw * 0.8, hh, -hd * 0.8,
+    -hw * 0.8, hh, hd * 0.8,   hw * 0.8, hh, -hd * 0.8,  -hw * 0.8, hh, -hd * 0.8,
+    -hw * 0.8, hh, hd * 0.8,   0, -hh, hd * 1.15,   hw * 0.8, hh, hd * 0.8,
+    -hw * 0.8, hh, hd * 0.8,  -hw, -hh, hd,   0, -hh, hd * 1.15,
+     hw * 0.8, hh, hd * 0.8,   0, -hh, hd * 1.15,   hw, -hh, hd,
+    -hw * 0.8, hh, -hd * 0.8,  -hw, -hh, -hd,  -hw, -hh, hd,
+    -hw * 0.8, hh, -hd * 0.8,  -hw, -hh, hd,  -hw * 0.8, hh, hd * 0.8,
+     hw * 0.8, hh, hd * 0.8,   hw, -hh, hd,   hw, -hh, -hd,
+     hw * 0.8, hh, hd * 0.8,   hw, -hh, -hd,   hw * 0.8, hh, -hd * 0.8,
+    -hw * 0.8, hh, -hd * 0.8,  -hw, -hh, -hd,   hw, -hh, -hd,
+    -hw * 0.8, hh, -hd * 0.8,   hw, -hh, -hd,   hw * 0.8, hh, -hd * 0.8,
+    -hw, -hh, hd,   hw, -hh, hd,   hw, -hh, -hd,
+    -hw, -hh, hd,   hw, -hh, -hd,  -hw, -hh, -hd,
+  ]);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function createWingMeshGeometry(w: number, h: number, d: number): THREE.BufferGeometry {
+  const hw = w / 2;
+  const hh = h / 2;
+  const hd = d / 2;
+  const vertices = new Float32Array([
+    -hw, 0, -hd * 0.8,   hw, -hh * 0.2, hd * 0.8,   0, hh, -hd * 0.2,
+    -hw, 0, -hd * 0.8,   0, hh, -hd * 0.2,   0, hh * 0.6, -hd,
+    -hw, 0, -hd * 0.8,   0, -hh, -hd * 0.2,   hw, -hh * 0.2, hd * 0.8,
+    -hw, 0, -hd * 0.8,   0, -hh * 0.6, -hd,   0, -hh, -hd * 0.2,
+     hw, -hh * 0.2, hd * 0.8,   0, hh, -hd * 0.2,   0, -hh, -hd * 0.2,
+  ]);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function createLayerMeshGeometry(w: number, h: number, d: number): THREE.BufferGeometry {
+  const hw = w / 2;
+  const hh = h / 2;
+  const hd = d / 2;
+  const vertices = new Float32Array([
+    -hw * 0.8, hh, hd * 0.5,   hw * 0.8, hh, hd * 0.5,   hw * 0.9, hh * 0.35, hd * 0.7,
+    -hw * 0.8, hh, hd * 0.5,   hw * 0.9, hh * 0.35, hd * 0.7,  -hw * 0.9, hh * 0.35, hd * 0.7,
+    -hw * 0.9, hh * 0.35, hd * 0.7,   hw * 0.9, hh * 0.35, hd * 0.7,   hw, -hh * 0.35, hd * 0.9,
+    -hw * 0.9, hh * 0.35, hd * 0.7,   hw, -hh * 0.35, hd * 0.9,  -hw, -hh * 0.35, hd * 0.9,
+    -hw, -hh * 0.35, hd * 0.9,   hw, -hh * 0.35, hd * 0.9,   hw * 0.85, -hh, hd,
+    -hw, -hh * 0.35, hd * 0.9,   hw * 0.85, -hh, hd,  -hw * 0.85, -hh, hd,
+    -hw * 0.8, hh, -hd,   hw * 0.8, hh, -hd,   hw * 0.85, -hh, -hd,
+    -hw * 0.8, hh, -hd,   hw * 0.85, -hh, -hd,  -hw * 0.85, -hh, -hd,
+  ]);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
+export function mirrorGeometryX(srcGeo: THREE.BufferGeometry): THREE.BufferGeometry {
+  const geo = srcGeo.clone();
+  geo.scale(-1, 1, 1);
+
+  if (geo.index) {
+    const arr = geo.index.array;
+    for (let i = 0; i < arr.length; i += 3) {
+      const tmp = arr[i + 1];
+      arr[i + 1] = arr[i + 2];
+      arr[i + 2] = tmp;
+    }
+    geo.index.needsUpdate = true;
+  } else {
+    const pos = geo.attributes.position;
+    if (pos) {
+      for (let i = 0; i < pos.count; i += 3) {
+        const x1 = pos.getX(i + 1);
+        const y1 = pos.getY(i + 1);
+        const z1 = pos.getZ(i + 1);
+        const x2 = pos.getX(i + 2);
+        const y2 = pos.getY(i + 2);
+        const z2 = pos.getZ(i + 2);
+        pos.setXYZ(i + 1, x2, y2, z2);
+        pos.setXYZ(i + 2, x1, y1, z1);
+      }
+      pos.needsUpdate = true;
+    }
+    const uv = geo.attributes.uv;
+    if (uv) {
+      for (let i = 0; i < uv.count; i += 3) {
+        const u1 = uv.getX(i + 1);
+        const v1 = uv.getY(i + 1);
+        const u2 = uv.getX(i + 2);
+        const v2 = uv.getY(i + 2);
+        uv.setXY(i + 1, u2, v2);
+        uv.setXY(i + 2, u1, v1);
+      }
+      uv.needsUpdate = true;
+    }
+  }
+
+  geo.computeVertexNormals();
+  return geo;
+}
+
 export function buildPart(
   slotId: string,
   variant: string,
@@ -553,25 +733,37 @@ export function buildPart(
   g.name = slotId;
   g.userData.slotId = slotId;
   const segs = rec.segs;
+  const isLeft = isLeftSlot(slotId) && !slotId.startsWith("extra");
 
   for (const sp of specs) {
     let geo: THREE.BufferGeometry;
     const n = sp.n ?? segs;
-    if (sp.t === "box") {
+    if (sp.geo) {
+      geo = sp.geo;
+    } else if (sp.t === "box") {
       const [bw, bh, bd] = sp.s;
       const minSide = Math.min(bw, bh, bd);
-      if (minSide > 0.012) {
-        const isCurved = rec.quad === "SR" || rec.quad === "RR";
-        const segs = isCurved ? (rec.quad === "RR" ? 3 : 2) : 1; // 1 segment = clean 45-deg chamfer facet!
-        const radius = Math.min(minSide * (isCurved ? 0.20 : 0.12), 0.02);
-        geo = new RoundedBoxGeometry(bw, bh, bd, segs, Math.max(0.002, radius));
-      } else {
-        geo = new THREE.BoxGeometry(bw, bh, bd);
-      }
+      const isCurved = rec.quad === "SR" || rec.quad === "RR";
+      const segs = isCurved ? (rec.quad === "RR" ? 3 : 2) : 1; // 1 segment = clean polished 45-deg chamfer facet
+      const radius = Math.min(minSide * (isCurved ? 0.20 : 0.14), 0.018);
+      const safeRadius = Math.max(0.001, radius);
+      geo = new RoundedBoxGeometry(bw, bh, bd, segs, safeRadius);
     } else if (sp.t === "wedge") {
       geo = createWedgeGeometry(sp.s[0], sp.s[1], sp.s[2]);
     } else if (sp.t === "trap") {
       geo = createTrapezoidGeometry(sp.s[0], sp.s[1], sp.s[2]);
+    } else if (sp.t === "cowl") {
+      geo = createCowlGeometry(sp.s[0], sp.s[1], sp.s[2]);
+    } else if (sp.t === "claw") {
+      geo = createClawGeometry(sp.s[0], sp.s[1], sp.s[2]);
+    } else if (sp.t === "heel") {
+      geo = createHighHeelGeometry(sp.s[0], sp.s[1], sp.s[2]);
+    } else if (sp.t === "hover") {
+      geo = createHoverGeometry(sp.s[0], sp.s[1], sp.s[2]);
+    } else if (sp.t === "wing") {
+      geo = createWingMeshGeometry(sp.s[0], sp.s[1], sp.s[2]);
+    } else if (sp.t === "layer") {
+      geo = createLayerMeshGeometry(sp.s[0], sp.s[1], sp.s[2]);
     } else if (sp.t === "cyl") {
       const radSegs = sp.n != null ? sp.n : rec.quad === "SS" ? Math.min(8, Math.max(4, segs)) : Math.max(10, segs);
       geo = new THREE.CylinderGeometry(sp.s[0], sp.s[1], sp.s[2], radSegs);
@@ -608,9 +800,20 @@ export function buildPart(
       geo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
     }
 
+    if (isLeft) {
+      geo = mirrorGeometryX(geo);
+    }
+
     const mesh = new THREE.Mesh(geo, pal[sp.m]);
-    mesh.position.set(sp.p[0], sp.p[1], sp.p[2]);
-    if (sp.r) mesh.rotation.set(sp.r[0], sp.r[1], sp.r[2]);
+    if (isLeft) {
+      mesh.position.set(-sp.p[0], sp.p[1], sp.p[2]);
+      if (sp.r) {
+        mesh.rotation.set(sp.r[0], -sp.r[1], -sp.r[2]);
+      }
+    } else {
+      mesh.position.set(sp.p[0], sp.p[1], sp.p[2]);
+      if (sp.r) mesh.rotation.set(sp.r[0], sp.r[1], sp.r[2]);
+    }
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.userData.slotId = slotId;
@@ -626,6 +829,5 @@ export function buildPart(
     }
   }
 
-  if (isLeftSlot(slotId) && !slotId.startsWith("extra")) g.scale.x = -1;
   return g;
 }

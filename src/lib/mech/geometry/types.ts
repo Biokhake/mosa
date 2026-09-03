@@ -15,7 +15,13 @@ export type SpecType =
   | "hemi"
   | "ring"
   | "wedge"
-  | "trap";
+  | "trap"
+  | "cowl"
+  | "claw"
+  | "heel"
+  | "hover"
+  | "wing"
+  | "layer";
 
 export interface Spec {
   t: SpecType;
@@ -24,6 +30,7 @@ export interface Spec {
   p: [number, number, number];
   r?: [number, number, number];
   n?: number;
+  geo?: import("three").BufferGeometry;
 }
 
 export type Vec3 = [number, number, number];

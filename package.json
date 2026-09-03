@@ -71,6 +71,7 @@
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.3.0",
     "three": "^0.185.0",
+    "three-bvh-csg": "^0.0.18",
     "tw-animate-css": "^1.3.4",
     "vaul": "^1.1.2",
     "zod": "^4.4.0",

@@ -154,6 +154,120 @@ export const Trap = (
   r: rx || ry || rz ? [rx, ry, rz] : undefined,
 });
 
+export const Cowl = (
+  m: MatKey,
+  w: number,
+  h: number,
+  d: number,
+  x = 0,
+  y = 0,
+  z = 0,
+  rx = 0,
+  ry = 0,
+  rz = 0,
+): Spec => ({
+  t: "cowl",
+  m,
+  s: [w, h, d],
+  p: [x, y, z],
+  r: rx || ry || rz ? [rx, ry, rz] : undefined,
+});
+
+export const Claw = (
+  m: MatKey,
+  w: number,
+  h: number,
+  d: number,
+  x = 0,
+  y = 0,
+  z = 0,
+  rx = 0,
+  ry = 0,
+  rz = 0,
+): Spec => ({
+  t: "claw",
+  m,
+  s: [w, h, d],
+  p: [x, y, z],
+  r: rx || ry || rz ? [rx, ry, rz] : undefined,
+});
+
+export const Heel = (
+  m: MatKey,
+  w: number,
+  h: number,
+  d: number,
+  x = 0,
+  y = 0,
+  z = 0,
+  rx = 0,
+  ry = 0,
+  rz = 0,
+): Spec => ({
+  t: "heel",
+  m,
+  s: [w, h, d],
+  p: [x, y, z],
+  r: rx || ry || rz ? [rx, ry, rz] : undefined,
+});
+
+export const Hover = (
+  m: MatKey,
+  w: number,
+  h: number,
+  d: number,
+  x = 0,
+  y = 0,
+  z = 0,
+  rx = 0,
+  ry = 0,
+  rz = 0,
+): Spec => ({
+  t: "hover",
+  m,
+  s: [w, h, d],
+  p: [x, y, z],
+  r: rx || ry || rz ? [rx, ry, rz] : undefined,
+});
+
+export const WingMesh = (
+  m: MatKey,
+  w: number,
+  h: number,
+  d: number,
+  x = 0,
+  y = 0,
+  z = 0,
+  rx = 0,
+  ry = 0,
+  rz = 0,
+): Spec => ({
+  t: "wing",
+  m,
+  s: [w, h, d],
+  p: [x, y, z],
+  r: rx || ry || rz ? [rx, ry, rz] : undefined,
+});
+
+export const LayerMesh = (
+  m: MatKey,
+  w: number,
+  h: number,
+  d: number,
+  x = 0,
+  y = 0,
+  z = 0,
+  rx = 0,
+  ry = 0,
+  rz = 0,
+): Spec => ({
+  t: "layer",
+  m,
+  s: [w, h, d],
+  p: [x, y, z],
+  r: rx || ry || rz ? [rx, ry, rz] : undefined,
+});
+
 export function base(slot: string): string {
   return slot.replace(/[LR]$/, "");
 }
