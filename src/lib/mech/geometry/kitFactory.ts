@@ -256,10 +256,18 @@ export function buildLayeredShoulder(kit: ParsedKit, t: number, s: number, detai
   const out: Spec[] = [];
   const { archetype, dna } = kit;
 
+  // LAYER 0: SHOULDER GEAR FRAME — the arm's root actuator, owned by the
+  // shoulder (moved here off the collar). An inboard yoke + shrug servo that
+  // reaches toward the torso's chest segment so the arm is visibly mounted.
+  out.push(
+    B("dark", 0.15 * t, 0.06 * t, 0.11, -0.085, -0.055, 0),
+    ...makeRotaryServo("joint", "metal", -0.08, -0.05, 0, 0.05 * t, 0.055, 0, 0, Math.PI / 2, Math.max(10, s)),
+  );
+
   // LAYER 1: BASE — thin sub-frame plate + hinge axle
   out.push(
     B("dark", 0.16 * t, 0.035 * t, 0.16, 0.03, -0.075, 0),
-    C("metal", 0.036, 0.036, 0.14, 0, -0.065, 0, 0, 0, Math.PI / 2, Math.max(6, s)),
+    C("metal", 0.036, 0.036, 0.15, 0, -0.065, 0, 0, 0, Math.PI / 2, Math.max(6, s)),
     C("metal", 0.012, 0.012, 0.08, -0.02, -0.04, 0.045, 0.28, 0, 0, 6),
   );
 

@@ -265,6 +265,8 @@ export const SLOTS: SlotDef[] = [
 
   S("collar", "torso", "Collar", [0, 1.62, 0.02]),
   S("chestCore", "torso", "Chest Core", [0, 1.44, 0.04]),
+  S("chestR", "torso", "Chest R", [0.2, 1.42, 0.02], { mirror: "chestL" }),
+  S("chestL", "torso", "Chest L", [-0.2, 1.42, 0.02], { mirror: "chestR" }),
   S("pecL", "torso", "Pec L", [-0.13, 1.46, 0.09], { mirror: "pecR" }),
   S("pecR", "torso", "Pec R", [0.13, 1.46, 0.09], { mirror: "pecL" }),
   S("cockpit", "torso", "Cockpit", [0, 1.40, 0.14]),

@@ -26,6 +26,7 @@ import {
 import {
   collar,
   chestCore,
+  chest,
   pec,
   abdomen,
   pelvis,
@@ -179,6 +180,9 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
       break;
     case "chestCore":
       raw = chestCore(r);
+      break;
+    case "chest":
+      raw = chest(r, isLeft);
       break;
     case "pec":
       raw = pec(r, isLeft);

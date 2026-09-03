@@ -3,9 +3,11 @@ import type { Spec } from "./types";
 import {
   B,
   C,
+  Sp,
   Torus,
   Wedge,
   Trap,
+  Capsule,
   makeServoActuator,
   makeRotaryServo,
   makeCoolingFins,
@@ -18,52 +20,99 @@ import { generateKitDNA } from "./dna";
  * Collar (Neck Mount & Cervical Actuator Assembly).
  * Rotary neck bearing with twin cervical tilt pistons and cable grommet.
  */
+/**
+ * Collar — the NECK ring only. Six shells: three angular (S-class), three
+ * curved (R-class), picked by the kit's major axis + a DNA roll. Several are
+ * "popped" — a raised panel that shields the nape like a stood-up polo collar.
+ * Every shell keeps its front rim low and its raised panels tilted back and
+ * behind the neck axis so head pitch / yaw is never fouled.
+ */
 export function collar(r: Recipe): Spec[] {
   const t = r.thick;
   const s = r.segs;
   const out: Spec[] = [];
+  const dna = generateKitDNA(r.code.id);
+  const style = dna.hash % 3;
+  const curved = r.code.major === "R";
 
-  // Main Rotary Neck Bearing Turntable
-  out.push(...makeRotaryServo("joint", "metal", 0, 0, 0, 0.09 * t, 0.035, 0, 0, 0, s));
-
-  // Twin Cervical Linear Tilt Actuators — short, tucked under the armor rim
+  // --- shared cervical mechanism -------------------------------------------
+  out.push(...makeRotaryServo("joint", "metal", 0, -0.02, 0, 0.08 * t, 0.03, 0, 0, 0, s));
   out.push(
-    ...makeServoActuator("dark", "metal", 0.045 * t, -0.01, 0.015, 0.055, 0.011, 0.25, 0, 0, 8),
-    ...makeServoActuator("dark", "metal", -0.045 * t, -0.01, 0.015, 0.055, 0.011, 0.25, 0, 0, 8),
+    ...makeServoActuator("dark", "metal", 0.045 * t, -0.02, -0.02, 0.05, 0.01, 0.2, 0, 0, 8),
+    ...makeServoActuator("dark", "metal", -0.045 * t, -0.02, -0.02, 0.05, 0.01, 0.2, 0, 0, 8),
+  );
+  // low base ring every collar sits on — never rises in front of the chin
+  out.push(
+    curved
+      ? Torus("dark", 0.13 * t, 0.022, 0, -0.005, 0.01, Math.PI / 2, 0, 0, Math.max(16, s))
+      : C("dark", 0.135 * t, 0.145 * t, 0.05, 0, -0.005, 0.01, 0, 0, 0, Math.max(6, Math.min(10, s))),
   );
 
-  // Collar Armor Rim
-  out.push(
-    B("prim", 0.22 * t, 0.05, 0.18, 0, 0, 0),
-  );
+  const NAPE_Z = -0.075; // raised panels live behind the neck
+  const rimMat: "prim" = "prim";
 
-  // --- Clavicle struts -------------------------------------------------------
-  // The arm groups are pinned to FIXED shoulder sockets (x ±0.30, y 1.48). A
-  // narrow thorax otherwise leaves the pauldron hanging in space with nothing
-  // joining it to the body. These struts always span from the sternum out to
-  // that socket, so there is a visible load path regardless of torso width.
-  {
-    const SOCK_X = 0.3; // must track SLOT_BY_ID.shoulderR socket x
-    const dy = 1.48 - 1.62; // shoulder socket relative to the collar socket
-    const dz = 0 - 0.02;
-    for (const sgn of [-1, 1] as const) {
-      const innerX = sgn * 0.1;
-      const outerX = sgn * SOCK_X;
-      const midX = (innerX + outerX) / 2;
-      const len = Math.abs(outerX - innerX) + 0.06;
+  if (!curved) {
+    // ================= S-CLASS (angular) =================
+    if (style === 0) {
+      // S0 — standing block collar: tall faceted nape panel + short side wings
       out.push(
-        B("dark", len, 0.05, 0.1, midX, dy * 0.55, dz, 0, 0, sgn * 0.05),
-        C("metal", 0.05, 0.07, 0.1, outerX, dy, dz, 0, 0, Math.PI / 2, s),
-        Torus("joint", 0.06, 0.014, outerX, dy, dz, 0, Math.PI / 2, 0),
+        Trap(rimMat, 0.2 * t, 0.15 * t, 0.13, 0, 0.055, NAPE_Z, -0.5, 0, 0, 0.05),
+        Trap(rimMat, 0.09 * t, 0.11 * t, 0.1, 0.12 * t, 0.02, -0.02, -0.15, 0.5, 0, 0.05),
+        Trap(rimMat, 0.09 * t, 0.11 * t, 0.1, -0.12 * t, 0.02, -0.02, -0.15, -0.5, 0, 0.05),
+        // low front bib
+        B(rimMat, 0.14 * t, 0.045, 0.05, 0, -0.01, 0.11),
       );
+      if (r.ornate) out.push(B("trim", 0.17 * t, 0.012, 0.09, 0, 0.09, NAPE_Z - 0.02, -0.5, 0, 0));
+    } else if (style === 1) {
+      // S1 — split V collar: two flat wings flaring up-and-back, open front
+      for (const sgn of [-1, 1] as const) {
+        out.push(
+          Wedge(rimMat, 0.16 * t, 0.12, 0.07, sgn * 0.085 * t, 0.05, -0.03, -0.35, sgn * 0.7, 0),
+          B("dark", 0.03, 0.09, 0.05, sgn * 0.05 * t, 0.0, 0.02, 0, 0, sgn * 0.3),
+        );
+      }
+      out.push(B(rimMat, 0.1 * t, 0.04, 0.05, 0, -0.015, 0.1));
+      if (r.ornate) out.push(C("sec", 0.02, 0.02, 0.16 * t, 0, 0.02, -0.05, 0, 0, Math.PI / 2, 6));
+    } else {
+      // S2 — low gorget: chunky hex ring + angular front bib + small rear guard
+      out.push(
+        C(rimMat, 0.16 * t, 0.17 * t, 0.07, 0, 0.01, 0.005, 0, 0, 0, 8),
+        Trap(rimMat, 0.15 * t, 0.1 * t, 0.06, 0, 0.02, 0.11, 0.25, 0, 0, 0.06),
+        Wedge(rimMat, 0.14 * t, 0.08, 0.06, 0, 0.045, NAPE_Z, -0.3, 0, 0),
+      );
+      if (r.ornate) out.push(B("trim", 0.2 * t, 0.01, 0.02, 0, 0.05, 0.0));
     }
-  }
-
-  if (r.ornate) {
-    out.push(
-      B("trim", 0.24 * t, 0.015, 0.12, 0, 0.015, 0),
-      B("sec", 0.14 * t, 0.03, 0.05, 0, 0.01, 0.09),
-    );
+  } else {
+    // ================= R-CLASS (curved) =================
+    if (style === 0) {
+      // R0 — rolled turtleneck: smooth band, thicker + higher at the nape,
+      // with a rolled-over top lip
+      out.push(
+        C(rimMat, 0.15 * t, 0.16 * t, 0.14, 0, 0.04, 0, 0, 0, 0, Math.max(18, s)),
+        Torus(rimMat, 0.145 * t, 0.03, 0, 0.1, 0, Math.PI / 2, 0, 0, Math.max(18, s)),
+        // nape build-up
+        Capsule(rimMat, 0.07 * t, 0.12 * t, 0, 0.06, NAPE_Z, -0.4, 0, Math.PI / 2, Math.max(14, s)),
+      );
+      // scoop the front lip down so it clears the jaw
+      out.push(B("dark", 0.11 * t, 0.09, 0.06, 0, 0.06, 0.12));
+      if (r.ornate) out.push(Torus("trim", 0.16 * t, 0.012, 0, 0.02, 0, Math.PI / 2, 0, 0, Math.max(20, s)));
+    } else if (style === 1) {
+      // R1 — shawl collar: rounded flare sweeping front-to-back, domed rear
+      out.push(
+        C(rimMat, 0.19 * t, 0.15 * t, 0.1, 0, 0.03, -0.01, -0.12, 0, 0, Math.max(18, s)),
+        Sp(rimMat, 0.1 * t, 0, 0.06, NAPE_Z, Math.max(14, s)),
+        C(rimMat, 0.1 * t, 0.13 * t, 0.05, 0, -0.01, 0.11, 0.3, 0, 0, Math.max(16, s)),
+      );
+      if (r.ornate) out.push(Torus("sec", 0.17 * t, 0.014, 0, 0.05, -0.03, Math.PI / 2 - 0.2, 0, 0, Math.max(20, s)));
+    } else {
+      // R2 — soft ring gorget: torus ring + rounded front bib + rear cowl
+      out.push(
+        Torus(rimMat, 0.15 * t, 0.038, 0, 0.015, 0.005, Math.PI / 2, 0, 0, Math.max(18, s)),
+        C(rimMat, 0.12 * t, 0.12 * t, 0.055, 0, -0.005, 0.1, 0.2, 0, 0, Math.max(16, s)),
+        Capsule(rimMat, 0.06 * t, 0.14 * t, 0, 0.05, NAPE_Z, 0, 0, Math.PI / 2, Math.max(14, s)),
+      );
+      if (r.ornate) out.push(Torus("trim", 0.155 * t, 0.01, 0, 0.05, 0.005, Math.PI / 2, 0, 0, Math.max(20, s)));
+    }
   }
 
   return out;
@@ -120,6 +169,54 @@ export function chestCore(r: Recipe): Spec[] {
     out.push(B("sec", 0.24 * t, 0.12, 0.035, 0, 0.06, 0.12 + plateD * 0.55));
   }
 
+  return out;
+}
+
+/**
+ * Chest (Left / Right thoracic side segments).
+ *
+ * Fills the span between the Chest Core's side and the shoulder connection.
+ * Same design language as the Core — dark chassis cage, frame rails, front
+ * armour plate, lateral cooling fins — seated flush against the Core, with the
+ * shoulder-connection axis allowed to show through. Built canonically for +X;
+ * buildPart mirrors the chestL slot.
+ */
+export function chest(r: Recipe, _isLeft: boolean): Spec[] {
+  const t = r.thick;
+  const s = r.segs;
+  const out: Spec[] = [];
+  const dna = generateKitDNA(r.code.id);
+  const zv = dna.zVolume;
+
+  const innerX = -0.05; // flush against the chest-core side (world ~0.15)
+  const outerX = 0.1; // reaches the shoulder connection (world ~0.30)
+  const midX = (innerX + outerX) / 2;
+  const spanW = outerX - innerX;
+
+  // exposed shoulder-connection axis frame — allowed to peek out
+  out.push(
+    C("joint", 0.026 * t, 0.026 * t, spanW + 0.1, midX + 0.02, 0, -0.01, 0, 0, Math.PI / 2, Math.max(8, s)),
+  );
+  // dark structural chassis — echoes the core's thoracic cage
+  out.push(
+    B("dark", spanW, 0.16, 0.2, midX, 0, -0.01),
+    B("joint", 0.03 * t, 0.19, 0.24, innerX + 0.012, 0, -0.01), // inboard rail, flush to core
+  );
+  // front armour plate — same primitive family as the core breastplate
+  const plateD = Math.max(0.04, 0.05 * zv * (r.ornate ? 1 : 0.85));
+  out.push(
+    r.code.form === "R"
+      ? C("prim", spanW * 0.5, spanW * 0.5, 0.15, midX, 0.006, 0.09, Math.PI / 2, 0, 0, Math.max(14, s))
+      : B("prim", spanW + 0.006, 0.14, plateD, midX, 0.006, 0.09),
+  );
+  // lateral heat-exchanger fins — the core carries these too
+  out.push(...makeCoolingFins("metal", 0.055 * t, 0.08, 0.03, midX, -0.03, 0.06, 3, "y"));
+  if (r.ornate) {
+    out.push(
+      B("trim", spanW * 0.85, 0.016, 0.09, midX, 0.085, 0.085),
+      B("sec", 0.05 * t, 0.06, 0.03, outerX - 0.02, 0.02, 0.09),
+    );
+  }
   return out;
 }
 
