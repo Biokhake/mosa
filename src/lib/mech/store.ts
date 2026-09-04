@@ -86,76 +86,13 @@ function restorePanel(id: string, saved?: PanelRect): PanelRect {
   return clampPanel(id, { ...def, ...saved });
 }
 
-export function defaultScaleFor(id: string): Pick<SlotState, "sx" | "sy" | "sz"> {
-  const g = SLOT_BY_ID[id]?.group;
-  if (g === "head" || id === "extra5" || id === "extra7") return { sx: 0.72, sy: 0.72, sz: 0.72 };
-  switch (id) {
-    case "collar":
-      return { sx: 0.92, sy: 0.88, sz: 0.92 };
-    case "chestCore":
-      return { sx: 0.9, sy: 1.06, sz: 0.94 };
-    case "pecL":
-    case "pecR":
-      return { sx: 0.88, sy: 1, sz: 0.9 };
-    case "cockpit":
-      return { sx: 0.88, sy: 1, sz: 0.88 };
-    case "abdomen":
-      return { sx: 0.86, sy: 1.1, sz: 0.9 };
-    case "pelvis":
-      return { sx: 0.9, sy: 1, sz: 0.92 };
-    case "skirtF":
-    case "skirtB":
-      return { sx: 0.9, sy: 1.06, sz: 0.92 };
-    case "skirtL":
-    case "skirtR":
-      return { sx: 0.9, sy: 1.1, sz: 0.92 };
-    case "shoulderR":
-    case "shoulderL":
-      return { sx: 0.88, sy: 0.9, sz: 0.88 };
-    case "upperR":
-    case "upperL":
-      return { sx: 0.88, sy: 1.14, sz: 0.88 };
-    case "elbowR":
-    case "elbowL":
-      return { sx: 0.94, sy: 0.94, sz: 0.94 };
-    case "forearmR":
-    case "forearmL":
-      return { sx: 0.88, sy: 1.14, sz: 0.88 };
-    case "vambraceR":
-    case "vambraceL":
-      return { sx: 0.9, sy: 1.04, sz: 0.9 };
-    case "handR":
-    case "handL":
-      return { sx: 0.94, sy: 0.94, sz: 0.94 };
-    case "hipR":
-    case "hipL":
-      return { sx: 1.06, sy: 1.06, sz: 1.06 };
-    case "thighR":
-    case "thighL":
-      return { sx: 1.16, sy: 1.28, sz: 1.16 };
-    case "kneeR":
-    case "kneeL":
-      return { sx: 1.12, sy: 1.08, sz: 1.12 };
-    case "shinR":
-    case "shinL":
-      return { sx: 1.14, sy: 1.32, sz: 1.14 };
-    case "ankleR":
-    case "ankleL":
-      return { sx: 1.1, sy: 1.06, sz: 1.1 };
-    case "footR":
-    case "footL":
-      return { sx: 1.08, sy: 1, sz: 1.18 };
-    case "pack":
-      return { sx: 0.9, sy: 0.94, sz: 0.9 };
-    case "thrusterL":
-    case "thrusterR":
-      return { sx: 0.92, sy: 0.92, sz: 0.92 };
-    case "binderL":
-    case "binderR":
-      return { sx: 0.92, sy: 0.96, sz: 0.92 };
-    default:
-      return { sx: 1, sy: 1, sz: 1 };
-  }
+export function defaultScaleFor(_id: string): Pick<SlotState, "sx" | "sy" | "sz"> {
+  // Identity. The per-slot scale table that used to live here was tuned to make
+  // the legacy generated geometry sit correctly against the socket map; that
+  // geometry is withdrawn, and a kit authored by hand should render at the
+  // dimensions it was authored at. Slots can still be scaled in the studio —
+  // this is only what "0" on the sliders means.
+  return { sx: 1, sy: 1, sz: 1 };
 }
 
 function defaultFor(id: string): SlotState {

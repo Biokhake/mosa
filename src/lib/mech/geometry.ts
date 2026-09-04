@@ -59,6 +59,7 @@ import {
 
 import { createGeometryByID } from "./geometry/kitFactory";
 import { engineChestCore, engineCockpit, engineShin, engineThigh } from "./geometry/engineSlots";
+import { RX78_KEY, rx78 } from "./geometry/rx78";
 
 export type { Spec };
 
@@ -141,6 +142,16 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
   const r = getRecipe(variant);
   const b = base(slotId);
   const isLeft = isLeftSlot(slotId);
+
+  // The reference reconstruction is authored slot by slot and owns its own
+  // joint hardware, so it bypasses the generative path entirely. A slot the
+  // build does not define renders nothing — that is information, not a gap to
+  // paper over: it says this design does not use that slot.
+  if (variant === RX78_KEY) {
+    const built = rx78(b);
+    return built ? ensureLR(built) : [];
+  }
+
   let raw: Spec[];
 
   switch (b) {
@@ -214,11 +225,11 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
       raw = createGeometryByID(variant, slotId, isLeft, r);
       break;
     case "upper":
-      // the elbow module rides with the upper arm (its old socket was 0.18 below)
-      raw = [...upper(r, isLeft), ...shift(elbow(r, isLeft), -0.18)];
+      raw = upper(r, isLeft);
       break;
     case "forearm":
-      raw = forearm(r, isLeft);
+      // the elbow module rides with the forearm (its old socket was 0.18 above)
+      raw = [...forearm(r, isLeft), ...shift(elbow(r, isLeft), 0.18)];
       break;
     case "vambrace":
       raw = createGeometryByID(variant, slotId, isLeft, r);
