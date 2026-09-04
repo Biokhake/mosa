@@ -1,3 +1,20 @@
+/**
+ * Kit identity.
+ *
+ * This used to generate a hundred IDs from a four-quadrant grammar and hand
+ * one to each generated kit. That grammar is not gone — it is EARLY. An ID is
+ * meant to be a measured output that ranks a kit among its band-mates, and
+ * ranking sixteen kits into a hundred-slot grid would be inventing the ranks.
+ *
+ * So until the catalogue reaches a hundred entries a kit is called by the
+ * reference archetype it was decomposed from, and `codes.ts` is a thin view
+ * over that corpus. `StyleCode`'s shape is unchanged so the picker, the
+ * recipes and the saved sessions all keep working.
+ */
+
+import { REFERENCES, idsAreAssigned, LINEAGES } from "./engine/references";
+import type { Lineage } from "./engine/references";
+
 export type SR = "S" | "R";
 
 export type StyleCode = {
@@ -7,6 +24,9 @@ export type StyleCode = {
   form: SR;
   letter: string;
   complexity: number;
+  /** display name — the reference this kit was decomposed from */
+  name: string;
+  lineage: Lineage;
 };
 
 const AZ = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -16,39 +36,29 @@ export function lettersWithout(ch: SR): string {
 }
 
 export function buildCodes(): StyleCode[] {
-  const quads: Array<[SR, SR]> = [
-    ["S", "S"],
-    ["S", "R"],
-    ["R", "S"],
-    ["R", "R"],
-  ];
-  const out: StyleCode[] = [];
-  let serial = 1;
-  for (const [major, form] of quads) {
-    const letters = lettersWithout(form);
-    for (let i = 0; i < letters.length; i++) {
-      const letter = letters[i]!;
-      out.push({
-        id: `${major}${form}${letter}-${String(serial).padStart(3, "0")}`,
-        serial,
-        major,
-        form,
-        letter,
-        complexity: i,
-      });
-      serial += 1;
-    }
-  }
-  return out;
+  const perLineage: Record<string, number> = {};
+  return REFERENCES.map((r, i) => {
+    const n = (perLineage[r.lineage] = (perLineage[r.lineage] ?? 0) + 1);
+    return {
+      id: r.key,
+      serial: i + 1,
+      major: r.silhouette.angularity >= 0.5 ? "S" : "R",
+      form: r.edge,
+      letter: AZ[(n - 1) % 26]!,
+      // complexity drives the legacy palette/detail ramp; decoration is what
+      // that ramp actually meant, so read it straight off the reference
+      complexity: Math.round(r.decoration * 25),
+      name: r.name,
+      lineage: r.lineage,
+    };
+  });
 }
 
 export const STYLES = buildCodes();
 export const STYLE_BY_ID = Object.fromEntries(STYLES.map((s) => [s.id, s]));
 export const DEFAULT_STYLE = STYLES[0]!.id;
 
-export const QUAD_RANGES = [
-  { id: "SS", label: "SS 001–025", from: 1, to: 25 },
-  { id: "SR", label: "SR 026–050", from: 26, to: 50 },
-  { id: "RS", label: "RS 051–075", from: 51, to: 75 },
-  { id: "RR", label: "RR 076–100", from: 76, to: 100 },
-] as const;
+/** Picker filter groups. Lineages while the catalogue is small; bands once IDs exist. */
+export const QUAD_RANGES = LINEAGES.map((l) => ({ id: l.id as string, label: l.label }));
+
+export const IDS_ASSIGNED = idsAreAssigned();

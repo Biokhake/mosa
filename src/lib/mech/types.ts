@@ -81,7 +81,7 @@ export const PAINTS: { id: string | null; name: string; hex: string }[] = [
   { id: "#5c1f1f", name: "Crimson", hex: "#5c1f1f" },
 ];
 
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 10;
 
 export type ThemeMode = "light" | "dark";
 

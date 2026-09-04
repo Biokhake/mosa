@@ -66,6 +66,10 @@ function base(slot: string): string {
   return slot.replace(/[LR]$/, "");
 }
 
+function shift(specs: Spec[], dy: number, dz = 0): Spec[] {
+  return specs.map((sp) => ({ ...sp, p: [sp.p[0], sp.p[1] + dy, sp.p[2] + dz] as [number, number, number] }));
+}
+
 const P2_MATS = new Set<MatKey>(["sec", "acc", "trim", "dark", "metal", "joint"]);
 
 function flipX(s: Spec): Spec {
@@ -210,10 +214,8 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
       raw = createGeometryByID(variant, slotId, isLeft, r);
       break;
     case "upper":
-      raw = upper(r, isLeft);
-      break;
-    case "elbow":
-      raw = elbow(r, isLeft);
+      // the elbow module rides with the upper arm (its old socket was 0.18 below)
+      raw = [...upper(r, isLeft), ...shift(elbow(r, isLeft), -0.18)];
       break;
     case "forearm":
       raw = forearm(r, isLeft);
@@ -228,16 +230,12 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
       raw = hip(r, isLeft);
       break;
     case "thigh":
-      raw = engineThigh(variant);
-      break;
-    case "knee":
-      raw = knee(r, isLeft);
+      // the knee module rides with the thigh (old socket 0.26 below, 0.02 forward)
+      raw = [...engineThigh(variant), ...shift(knee(r, isLeft), -0.26, 0.02)];
       break;
     case "shin":
-      raw = engineShin(variant);
-      break;
-    case "ankle":
-      raw = ankle(r, isLeft);
+      // the ankle module rides with the shin (old socket 0.18 below, 0.01 back)
+      raw = [...engineShin(variant), ...shift(ankle(r, isLeft), -0.18, -0.01)];
       break;
     case "foot":
       raw = createGeometryByID(variant, slotId, isLeft, r);

@@ -26,6 +26,7 @@ import type { ShinRig } from "./skeleton";
 import { grammarShin, shinInterfaces } from "./grammar/shin";
 import { grammarThigh, thighInterfaces } from "./grammar/thigh";
 import { grammarChestCore, grammarCockpitHatch, cockpitInterfaces, cockpitView, cockpitArchitecture } from "./grammar/cockpit";
+import { REFERENCE_BY_KEY, briefFromReference } from "./references";
 import { validateAssembly, partOrigin } from "./assembly";
 import { topologyPool, topologyAffinity } from "./grammar/topology";
 import type { LimbTopology } from "./grammar/topology";
@@ -58,6 +59,8 @@ export type { Population, PopulationEntry } from "./population";
 export { validateAssembly } from "./assembly";
 export type { AssemblyReport } from "./assembly";
 export { mountGeometry, mountAll, mountKindForDof } from "./grammar/mount";
+export { REFERENCES, REFERENCE_BY_KEY, LINEAGES, briefFromReference, idsAreAssigned } from "./references";
+export type { ReferenceArchetype, Lineage } from "./references";
 
 /** How many candidates the generate-and-select loop builds per slot. */
 const REFINE_COUNT = 5;
@@ -330,7 +333,13 @@ export function checkKitAssembly(brief: Brief) {
  * is only a fallback for IDs outside the generated set.
  */
 export function briefForId(id: string): Brief {
-  const entry = getPopulation().byId[(id || "").trim().toUpperCase()];
+  const key = (id || "").trim().toUpperCase();
+  // A kit is a reference archetype until the catalogue is big enough for the
+  // ID grammar to mean anything (see references.ts). The population lookup is
+  // kept for when that day comes, and the legacy decoder for saved sessions.
+  const ref = REFERENCE_BY_KEY[key];
+  if (ref) return briefFromReference(ref);
+  const entry = getPopulation().byId[key];
   return entry ? entry.brief : briefFromLegacyId(id);
 }
 

@@ -161,9 +161,7 @@ export function Studio() {
   const filteredStyles = useMemo(() => {
     return STYLES.filter((s) => {
       if (quad === "all") return true;
-      const q = QUAD_RANGES.find((r) => r.id === quad);
-      if (q && (s.serial < q.from || s.serial > q.to)) return false;
-      return true;
+      return s.lineage === quad;
     });
   }, [quad]);
 

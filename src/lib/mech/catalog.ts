@@ -284,30 +284,24 @@ export const SLOTS: SlotDef[] = [
   // R = the robot's right (screen-left, -X). arm Y raised to track the chest.
   S("shoulderR", "armR", "Shoulder R", [-0.30, 1.46, 0], { mirror: "shoulderL" }),
   S("upperR", "armR", "Upper R", [-0.30, 1.26, 0], { mirror: "upperL" }),
-  S("elbowR", "armR", "Elbow R", [-0.30, 1.08, 0], { mirror: "elbowL" }),
   S("forearmR", "armR", "Forearm R", [-0.30, 0.90, 0], { mirror: "forearmL" }),
   S("vambraceR", "armR", "Vambrace R", [-0.30, 0.88, 0.03], { mirror: "vambraceL" }),
   S("handR", "armR", "Hand R", [-0.30, 0.72, 0], { mirror: "handL" }),
 
   S("shoulderL", "armL", "Shoulder L", [0.30, 1.46, 0], { mirror: "shoulderR" }),
   S("upperL", "armL", "Upper L", [0.30, 1.26, 0], { mirror: "upperR" }),
-  S("elbowL", "armL", "Elbow L", [0.30, 1.08, 0], { mirror: "elbowR" }),
   S("forearmL", "armL", "Forearm L", [0.30, 0.90, 0], { mirror: "forearmR" }),
   S("vambraceL", "armL", "Vambrace L", [0.30, 0.88, 0.03], { mirror: "vambraceR" }),
   S("handL", "armL", "Hand L", [0.30, 0.72, 0], { mirror: "handR" }),
 
   S("hipR", "legR", "Hip R", [-0.14, 0.98, 0], { mirror: "hipL" }),
   S("thighR", "legR", "Thigh R", [-0.14, 0.76, 0], { mirror: "thighL" }),
-  S("kneeR", "legR", "Knee R", [-0.14, 0.50, 0.02], { mirror: "kneeL" }),
   S("shinR", "legR", "Shin R", [-0.14, 0.28, 0.01], { mirror: "shinL" }),
-  S("ankleR", "legR", "Ankle R", [-0.14, 0.10, 0], { mirror: "ankleL" }),
   S("footR", "legR", "Foot R", [-0.14, 0.04, 0.02], { mirror: "footL" }),
 
   S("hipL", "legL", "Hip L", [0.14, 0.98, 0], { mirror: "hipR" }),
   S("thighL", "legL", "Thigh L", [0.14, 0.76, 0], { mirror: "thighR" }),
-  S("kneeL", "legL", "Knee L", [0.14, 0.50, 0.02], { mirror: "kneeR" }),
   S("shinL", "legL", "Shin L", [0.14, 0.28, 0.01], { mirror: "shinR" }),
-  S("ankleL", "legL", "Ankle L", [0.14, 0.10, 0], { mirror: "ankleR" }),
   S("footL", "legL", "Foot L", [0.14, 0.04, 0.02], { mirror: "footR" }),
 
   S("pack", "back", "Pack Core", [0, 1.46, -0.16]),
@@ -315,12 +309,12 @@ export const SLOTS: SlotDef[] = [
   S("thrusterL", "back", "Thruster L", [0.14, 1.42, -0.24], { mirror: "thrusterR" }),
   S("binderR", "back", "Binder R", [-0.24, 1.50, -0.18], {
     optional: true,
-    defaultVariant: STYLES[26]?.id ?? DEFAULT_STYLE,
+    defaultVariant: DEFAULT_STYLE,
     mirror: "binderL",
   }),
   S("binderL", "back", "Binder L", [0.24, 1.50, -0.18], {
     optional: true,
-    defaultVariant: STYLES[26]?.id ?? DEFAULT_STYLE,
+    defaultVariant: DEFAULT_STYLE,
     mirror: "binderR",
   }),
   S("stabilizer", "back", "Stabilizer", [0, 1.28, -0.22], { optional: true }),

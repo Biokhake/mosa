@@ -17,13 +17,17 @@ const LEGACY_KEYS = [
   "frame-mix-build-v2",
 ];
 
+// Names from a build long before the reference corpus. They were mapped onto
+// fixed positions in a hundred-entry ID grid; the catalogue is now however
+// many archetypes have been decomposed, so pick by ratio rather than by index.
+const at = (frac: number) => STYLES[Math.min(STYLES.length - 1, Math.floor(frac * STYLES.length))]!.id;
 const LEGACY_FAM: Record<string, string> = {
-  origin: STYLES[0]!.id,
-  nomad: STYLES[75]!.id,
-  aether: STYLES[25]!.id,
-  fortress: STYLES[24]!.id,
-  pulse: STYLES[50]!.id,
-  chibi: STYLES[99]!.id,
+  origin: at(0),
+  nomad: at(0.75),
+  aether: at(0.25),
+  fortress: at(0.24),
+  pulse: at(0.5),
+  chibi: at(0.99),
 };
 
 function migrateVariant(v: string, kind: string): string {
