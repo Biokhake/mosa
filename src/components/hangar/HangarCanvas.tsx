@@ -349,7 +349,7 @@ export function HangarCanvas() {
   return (
     <Canvas
       shadows
-      dpr={[1, 2]}
+      dpr={[1, 1.75]}
       camera={{ position: [2.4, 1.6, 3.4], fov: 38, near: 0.1, far: 50 }}
       gl={{ antialias: true, preserveDrawingBuffer: true, toneMapping: THREE.NoToneMapping }}
       onCreated={({ gl }) => {
@@ -388,7 +388,7 @@ export function HangarCanvas() {
             in the panel gaps, part seams and recesses that flat shading loses.
             Bloom is thresholded so only the emissive roles (visor / optics /
             beams) bleed — nothing else in the palette is emissive. */}
-        <EffectComposer multisampling={4} enableNormalPass>
+        <EffectComposer multisampling={2} enableNormalPass>
           {/* a tight radius so the occlusion lands in panel gaps and part
               seams rather than shading whole limbs */}
           <N8AO
@@ -396,7 +396,8 @@ export function HangarCanvas() {
             distanceFalloff={0.6}
             intensity={3.2}
             color="#0b0d12"
-            quality="high"
+            quality="medium"
+            halfRes
           />
           <Bloom
             luminanceThreshold={0.62}

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { MatKey, Palette } from "./palette";
 import { getLineMat, getPalette } from "./palette";
 import { isLeftSlot, isVisorSlot } from "./catalog";
@@ -568,6 +569,32 @@ export function mirrorGeometryX(srcGeo: THREE.BufferGeometry): THREE.BufferGeome
   return geo;
 }
 
+const _m4 = new THREE.Matrix4();
+const _q = new THREE.Quaternion();
+const _euler = new THREE.Euler();
+const _v3 = new THREE.Vector3();
+const _one = new THREE.Vector3(1, 1, 1);
+
+/**
+ * mergeGeometries demands identical attribute sets, and the hand-authored
+ * BufferGeometries here carry position only. Normalise every geometry to
+ * non-indexed position/normal/uv so a whole material bucket can be collapsed
+ * into one draw call.
+ */
+function normalizeForMerge(src: THREE.BufferGeometry): THREE.BufferGeometry {
+  const g = src.index ? src.toNonIndexed() : src.clone();
+  if (!g.attributes.normal) g.computeVertexNormals();
+  if (!g.attributes.uv) {
+    const n = g.attributes.position.count;
+    g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(n * 2), 2));
+  }
+  for (const k of Object.keys(g.attributes)) {
+    if (k !== "position" && k !== "normal" && k !== "uv") g.deleteAttribute(k);
+  }
+  g.morphAttributes = {};
+  return g;
+}
+
 export function buildPart(
   slotId: string,
   variant: string,
@@ -586,6 +613,8 @@ export function buildPart(
   g.userData.slotId = slotId;
   const segs = rec.segs;
   const isLeft = isLeftSlot(slotId) && !slotId.startsWith("extra");
+  const buckets: Partial<Record<MatKey, THREE.BufferGeometry[]>> = {};
+  const edgeParts: THREE.BufferGeometry[] = [];
 
   for (const sp of specs) {
     let geo: THREE.BufferGeometry;
@@ -659,25 +688,48 @@ export function buildPart(
       geo = mirrorGeometryX(geo);
     }
 
-    const mesh = new THREE.Mesh(geo, pal[sp.m]);
+    // bake the spec's placement into the vertices so the whole material bucket
+    // can collapse into a single draw call below
+    _m4.identity();
     if (isLeft) {
-      mesh.position.set(-sp.p[0], sp.p[1], sp.p[2]);
-      if (sp.r) {
-        mesh.rotation.set(sp.r[0], -sp.r[1], -sp.r[2]);
-      }
+      _euler.set(sp.r ? sp.r[0] : 0, sp.r ? -sp.r[1] : 0, sp.r ? -sp.r[2] : 0);
+      _v3.set(-sp.p[0], sp.p[1], sp.p[2]);
     } else {
-      mesh.position.set(sp.p[0], sp.p[1], sp.p[2]);
-      if (sp.r) mesh.rotation.set(sp.r[0], sp.r[1], sp.r[2]);
+      _euler.set(sp.r ? sp.r[0] : 0, sp.r ? sp.r[1] : 0, sp.r ? sp.r[2] : 0);
+      _v3.set(sp.p[0], sp.p[1], sp.p[2]);
     }
+    _m4.compose(_v3, _q.setFromEuler(_euler), _one);
+
+    const placed = normalizeForMerge(geo);
+    placed.applyMatrix4(_m4);
+    geo.dispose();
+
+    (buckets[sp.m] ??= []).push(placed);
+    if (edges) {
+      const e = new THREE.EdgesGeometry(placed, 28);
+      edgeParts.push(e);
+    }
+  }
+
+  // ---- one mesh per material, one line object for the whole part ----------
+  for (const key of Object.keys(buckets) as MatKey[]) {
+    const list = buckets[key]!;
+    if (!list.length) continue;
+    const merged = list.length === 1 ? list[0]! : mergeGeometries(list, false);
+    if (list.length > 1) for (const gg of list) gg.dispose();
+    if (!merged) continue;
+    const mesh = new THREE.Mesh(merged, pal[key]);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.userData.slotId = slotId;
     g.add(mesh);
+  }
 
-    if (edges) {
-      const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 28), getLineMat(theme));
-      e.position.copy(mesh.position);
-      e.rotation.copy(mesh.rotation);
+  if (edgeParts.length) {
+    const mergedEdges = edgeParts.length === 1 ? edgeParts[0]! : mergeGeometries(edgeParts, false);
+    if (edgeParts.length > 1) for (const ee of edgeParts) ee.dispose();
+    if (mergedEdges) {
+      const e = new THREE.LineSegments(mergedEdges, getLineMat(theme));
       e.userData.slotId = slotId;
       e.raycast = () => {};
       g.add(e);
