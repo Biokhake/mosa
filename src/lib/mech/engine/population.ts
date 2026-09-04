@@ -25,13 +25,15 @@ import type { Band, Brief, MetricVector } from "./types";
 
 const BANDS: Band[] = ["SS", "SR", "RS", "RR"];
 const PER_BAND = 25;
-const POOL_PER_BAND = 44;
+const POOL_PER_BAND = 34;
 
 export interface PopulationEntry {
   id: string;
   seed: string;
   brief: Brief;
   metrics: MetricVector;
+  /** 0..1 proportion-target agreement */
+  proportion: number;
   band: Band;
   /** 0 = least decorated in the band = letter A = serial = band base */
   rankInBand: number;
@@ -46,13 +48,15 @@ export interface Population {
 }
 
 /** What `designKit` must return for the population to measure it. */
-export type MeasuredKit = { brief: Brief; metrics: MetricVector; band?: Band };
+export type MeasuredKit = { brief: Brief; metrics: MetricVector; band?: Band; proportion?: number };
 export type DesignKitFn = (brief: Brief) => MeasuredKit;
 
 interface Cand {
   seed: string;
   brief: Brief;
   metrics: MetricVector;
+  /** 0..1 proportion-target agreement (see proportionScore.ts) */
+  proportion: number;
 }
 
 /** Distance in the axes that decide "is this a meaningfully different design". */
@@ -129,7 +133,7 @@ export function generatePopulation(designKit: DesignKitFn): Population {
       const seed = `pop/${band}/${i}`;
       const brief = makeBrief(seed, band);
       const kit = designKit(brief);
-      const c: Cand = { seed, brief, metrics: kit.metrics };
+      const c: Cand = { seed, brief, metrics: kit.metrics, proportion: kit.proportion ?? 1 };
       all.push(c);
       if ((kit.band ?? classifyBand(kit.metrics)) === band) inBand.push(c);
     }
@@ -137,7 +141,13 @@ export function generatePopulation(designKit: DesignKitFn): Population {
 
     // prefer candidates that measured into the band; fall back to the full
     // pool if the grammar drifted too many out of it
-    const usable = inBand.length >= PER_BAND ? inBand : all;
+    const inBandPool = inBand.length >= PER_BAND ? inBand : all;
+    // TASTE GATE: drop the worst-proportioned quarter before sampling for
+    // diversity, so variety is drawn from designs that are already well
+    // proportioned rather than spread across every ratio mistake.
+    const byProp = [...inBandPool].sort((a, b) => b.proportion - a.proportion);
+    const keep = Math.max(PER_BAND, Math.ceil(byProp.length * 0.75));
+    const usable = byProp.slice(0, keep);
     const picked = farthestPointSample(usable, PER_BAND);
 
     // INVERTED ID assignment: rank by measured decoration, ascending
@@ -148,6 +158,7 @@ export function generatePopulation(designKit: DesignKitFn): Population {
         seed: c.seed,
         brief: c.brief,
         metrics: c.metrics,
+        proportion: c.proportion,
         band,
         rankInBand: rank,
       });

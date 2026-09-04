@@ -91,6 +91,12 @@ export interface Prim {
   depth?: number;
   tier: Tier;
   zone: Zone;
+  /**
+   * Prims that together form ONE logical mass (e.g. the stacked segments of a
+   * curved shell profile). The critic treats a group as a single mass so a
+   * continuous profile is not mistaken for a stack of layered plates.
+   */
+  group?: string;
   /** 0 sharp .. 1 fully rounded — advisory for the renderer's bevel */
   bevel?: number;
 }

@@ -14,11 +14,15 @@
 import { clamp } from "./rng";
 import type { Brief, Prim } from "./types";
 import { measureMetrics } from "./classify";
+import { rasterize, measureSilhouette, hiddenShare } from "./raster";
+import type { SilhouetteMetrics } from "./raster";
 
 export interface Critique {
   score: number;
   penalties: Record<string, number>;
   notes: string[];
+  /** what the projected outline actually looks like */
+  silhouette?: SilhouetteMetrics;
 }
 
 interface Box {
@@ -105,9 +109,33 @@ export function critique(prims: Prim[], brief: Brief): Critique {
   const notes: string[] = [];
   if (prims.length === 0) return { score: 0, penalties: { empty: 1 }, notes: ["no geometry"] };
 
-  const m = measureMetrics(prims);
-  const masses = prims.filter((p) => p.tier === "mass");
-  const boxes = masses.map(box);
+  // one projection, shared by the metric vector and the silhouette rules below
+  const sil = measureSilhouette(rasterize(prims, "front", 96));
+  const m = measureMetrics(prims, sil);
+  // prims tagged into the same group are one logical mass (a curved shell is a
+  // profile stack, not a pyramid of plates) — merge before layering analysis
+  const rawMasses = prims.filter((p) => p.tier === "mass");
+  const grouped = new Map<string, Box>();
+  const boxes: Box[] = [];
+  for (const p of rawMasses) {
+    const b = box(p);
+    if (!p.group) {
+      boxes.push(b);
+      continue;
+    }
+    const cur = grouped.get(p.group);
+    if (!cur) grouped.set(p.group, b);
+    else {
+      const lo = [Math.min(cur.cx - cur.w / 2, b.cx - b.w / 2), Math.min(cur.cy - cur.h / 2, b.cy - b.h / 2), Math.min(cur.cz - cur.d / 2, b.cz - b.d / 2)];
+      const hi = [Math.max(cur.cx + cur.w / 2, b.cx + b.w / 2), Math.max(cur.cy + cur.h / 2, b.cy + b.h / 2), Math.max(cur.cz + cur.d / 2, b.cz + b.d / 2)];
+      grouped.set(p.group, {
+        cx: (lo[0]! + hi[0]!) / 2, cy: (lo[1]! + hi[1]!) / 2, cz: (lo[2]! + hi[2]!) / 2,
+        w: hi[0]! - lo[0]!, h: hi[1]! - lo[1]!, d: hi[2]! - lo[2]!,
+      });
+    }
+  }
+  for (const b of grouped.values()) boxes.push(b);
+  const masses = rawMasses;
 
   // 1 & 2 — LAYERING must be pyramidal, never an equal-size staircase.
   // Group masses into "columns": near-coincident in X and Z, stacked in Y or Z.
@@ -239,6 +267,54 @@ export function critique(prims: Prim[], brief: Brief): Critique {
     notes.push(`${redundant} near-coincident mass pair(s)`);
   }
 
+  // ==========================================================================
+  // SILHOUETTE — measured off the projected outline, not the primitive mix.
+  // Everything above reasons about boxes; these rules look at the shape.
+  // ==========================================================================
+  // 10 — does the OUTLINE match the band the brief asked for? A cylinder has a
+  // round section but a straight silhouette, so the old volume-ratio proxy let
+  // "curved" kits read as slab-sided. This checks the contour itself.
+  const wantAngular = brief.silhouette === "S";
+  const angGap = wantAngular ? 0.6 - sil.contourAngularity : sil.contourAngularity - 0.64;
+  if (angGap > 0) {
+    pen.contourBand = clamp(angGap * 1.6, 0, 0.3);
+    notes.push(
+      `outline reads ${sil.contourAngularity > 0.62 ? "faceted" : "curved"} (${sil.contourAngularity.toFixed(
+        2,
+      )}) but the brief wants ${brief.silhouette}`,
+    );
+  }
+
+  // 11 — does the shape survive at thumbnail size? A silhouette that dissolves
+  // when small has no read.
+  if (sil.readability < 0.82) {
+    pen.readability = clamp((0.82 - sil.readability) * 1.1, 0, 0.28);
+    notes.push(`silhouette weak at thumbnail size (${sil.readability.toFixed(2)})`);
+  }
+
+  // 12 — a ragged outline is noise, not detail
+  if (sil.contourComplexity > 5.6) {
+    pen.contourNoise = clamp((sil.contourComplexity - 5.6) * 0.09, 0, 0.26);
+    notes.push(`ragged outline (complexity ${sil.contourComplexity.toFixed(1)})`);
+  }
+
+  // 13 — the width profile should flow, not step. A jumpy profile is the
+  // signature of stacked slabs with no through-line.
+  if (sil.profileJitter > 0.11) {
+    pen.profileFlow = clamp((sil.profileJitter - 0.11) * 1.6, 0, 0.24);
+    notes.push(`width profile steps rather than flows (${sil.profileJitter.toFixed(2)})`);
+  }
+
+  // 14 — geometry nobody can see from any angle is cost with no payoff.
+  // Frame-tier prims are excluded: an internal structure is meant to be
+  // internal, and `frameExposure` already governs how much of it shows.
+  const visibleTiers = prims.filter((p) => p.tier !== "frame");
+  const buried = visibleTiers.length > 2 ? hiddenShare(visibleTiers) : 0;
+  if (buried > 0.12) {
+    pen.buried = clamp((buried - 0.12) * 1.2, 0, 0.24);
+    notes.push(`${Math.round(buried * 100)}% of prims are hidden from every view`);
+  }
+
   const total = Object.values(pen).reduce((x, y) => x + y, 0);
-  return { score: clamp(1 - total, 0, 1), penalties: pen, notes };
+  return { score: clamp(1 - total, 0, 1), penalties: pen, notes, silhouette: sil };
 }

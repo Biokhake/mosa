@@ -32,6 +32,7 @@ import { romSweepShin, romSweepThigh } from "./mechanics/romSweep";
 import { massReportShin, massReportLimb } from "./mechanics/mass";
 import { measureMetrics, classifyBand } from "./classify";
 import { critique } from "./critic";
+import { scoreProportions } from "./proportionScore";
 import { refine } from "./refine";
 import { generatePopulation } from "./population";
 import type { Population } from "./population";
@@ -42,6 +43,10 @@ export { makeBrief, briefFromLegacyId, PHILOSOPHIES } from "./brief";
 export { measureMetrics, classifyBand, classifyBand as _classifyBand, assignId, bandLetters } from "./classify";
 export { PHILOSOPHIES as DESIGN_PHILOSOPHIES } from "./brief";
 export { critique } from "./critic";
+export { scoreProportions } from "./proportionScore";
+export type { ProportionReport } from "./proportionScore";
+export { rasterize, measureSilhouette, hiddenShare, visiblePrims } from "./raster";
+export type { Silhouette, SilhouetteMetrics } from "./raster";
 export type { Critique } from "./critic";
 export { generatePopulation } from "./population";
 export type { Population, PopulationEntry } from "./population";
@@ -187,7 +192,12 @@ export function designRig(brief: Brief): Rig {
  * once and returns just the aggregate metrics + band (no per-slot artifacts,
  * no rig echo).
  */
-function measureKit(brief: Brief): { brief: Brief; metrics: ReturnType<typeof measureMetrics>; band: ReturnType<typeof classifyBand> } {
+function measureKit(brief: Brief): {
+  brief: Brief;
+  metrics: ReturnType<typeof measureMetrics>;
+  band: ReturnType<typeof classifyBand>;
+  proportion: number;
+} {
   const prop = resolveProportions(brief);
   const rig = buildRig(brief, prop);
   const prims = [
@@ -195,7 +205,7 @@ function measureKit(brief: Brief): { brief: Brief; metrics: ReturnType<typeof me
     ...thighArtifact(brief, prop, rig).prims,
   ];
   const metrics = measureMetrics(prims);
-  return { brief, metrics, band: classifyBand(metrics) };
+  return { brief, metrics, band: classifyBand(metrics), proportion: scoreProportions(prop, brief).score };
 }
 
 let _population: Population | null = null;

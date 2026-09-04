@@ -8,6 +8,8 @@
 
 import { clamp } from "./rng";
 import type { Band, MetricVector, Prim } from "./types";
+import { rasterize, measureSilhouette } from "./raster";
+import type { SilhouetteMetrics } from "./raster";
 
 const ANGULAR = new Set<Prim["kind"]>(["box", "wedge", "trapPrism", "octa"]);
 const CURVED = new Set<Prim["kind"]>(["cyl", "capsule", "sphere", "hemi", "torus"]);
@@ -82,12 +84,19 @@ function aabbUnion(prims: Prim[]): number {
   return Math.max(1e-6, (max[0]! - min[0]!) * (max[1]! - min[1]!) * (max[2]! - min[2]!));
 }
 
-export function measureMetrics(prims: Prim[]): MetricVector {
+/**
+ * `sil` lets a caller that has already rasterised the part (the critic does)
+ * hand the measurement in rather than paying for a second projection.
+ */
+export function measureMetrics(prims: Prim[], sil?: SilhouetteMetrics): MetricVector {
   const masses = prims.filter((p) => p.tier === "mass");
   const details = prims.filter((p) => p.tier === "detail");
   const panels = prims.filter((p) => p.tier === "panel");
 
-  // --- silhouette straightness (volume-weighted angular vs curved) ---
+  // --- silhouette straightness ---
+  // Measured off the PROJECTED OUTLINE (see raster.ts). The primitive-volume
+  // ratio is kept only as a weak prior: a cylinder has a round section but a
+  // straight silhouette, so the vocabulary alone is a poor witness.
   let angV = 0;
   let curV = 0;
   for (const p of masses) {
@@ -95,7 +104,11 @@ export function measureMetrics(prims: Prim[]): MetricVector {
     if (ANGULAR.has(p.kind)) angV += v;
     else if (CURVED.has(p.kind)) curV += v;
   }
-  const silhouetteStraightness = angV + curV > 0 ? angV / (angV + curV) : 0.5;
+  const vocabStraight = angV + curV > 0 ? angV / (angV + curV) : 0.5;
+  const contour = (sil ?? measureSilhouette(rasterize(prims, "front", 96))).contourAngularity;
+  // remap the contour reading around its observed neutral so it spans 0..1
+  const contourStraight = clamp((contour - 0.5) / 0.32 + 0.5, 0, 1);
+  const silhouetteStraightness = contourStraight * 0.72 + vocabStraight * 0.28;
 
   // --- edge sharpness (1 - mean bevel of masses, + sharp accents) ---
   const meanBevel = masses.length
