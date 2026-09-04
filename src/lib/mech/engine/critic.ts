@@ -149,21 +149,32 @@ export function critique(prims: Prim[], brief: Brief): Critique {
       if (used.has(j)) continue;
       const dx = Math.abs(boxes[i]!.cx - boxes[j]!.cx);
       const dz = Math.abs(boxes[i]!.cz - boxes[j]!.cz);
-      // only masses of comparable scale form a "layer stack" — a thin keel
-      // ridge or a small guard seated on a big plate is a feature, not a tier.
+      // Only masses of comparable scale form a "layer stack" — a keel ridge or
+      // a small guard seated on a big plate is a feature, not a tier. Width
+      // alone is not enough to say so: a keel is a longitudinal feature running
+      // most of the part, a knee guard is a local cap, and they are never two
+      // layers of one stack however similar their widths happen to be. Both
+      // extents have to be comparable before we call it a tier.
       const wr = boxes[i]!.w / (boxes[j]!.w || 1e-6);
-      const comparable = wr > 0.4 && wr < 2.5;
+      const hr = boxes[i]!.h / (boxes[j]!.h || 1e-6);
+      const comparable = wr > 0.4 && wr < 2.5 && hr > 0.45 && hr < 2.2;
       if (comparable && dx < Math.max(boxes[i]!.w, boxes[j]!.w) * 0.5 && dz < Math.max(boxes[i]!.d, boxes[j]!.d) * 0.75) {
         col.push(j);
       }
     }
     if (col.length < 2) continue;
     col.forEach((k) => used.add(k));
-    // order outward: increasing Z if they are layered front-to-back, else Y
     const zSpread = Math.max(...col.map((k) => boxes[k]!.cz)) - Math.min(...col.map((k) => boxes[k]!.cz));
     const ySpread = Math.max(...col.map((k) => boxes[k]!.cy)) - Math.min(...col.map((k) => boxes[k]!.cy));
-    const key: (k: number) => number = zSpread >= ySpread ? (k) => boxes[k]!.cz : (k) => boxes[k]!.cy;
-    const sorted = [...col].sort((x, y) => key(x) - key(y));
+    // "Each layer outward must be clearly smaller" is a statement about
+    // LAYERING — plates stacked front-to-back off a base. It says nothing
+    // about masses stacked ALONG the limb, where the governing shape rule is
+    // the taper: a leg is wider at the knee than at the ankle, so ordering a
+    // tapered stack bottom-to-top always yields a "growing" sequence and the
+    // pyramid test fires on every correctly tapered limb. Taper is judged by
+    // the proportion and silhouette rules; leave it to them.
+    if (ySpread > zSpread) continue;
+    const sorted = [...col].sort((x, y) => boxes[x]!.cz - boxes[y]!.cz);
     for (let k = 1; k < sorted.length; k++) {
       const lo = boxes[sorted[k - 1]!]!;
       const hi = boxes[sorted[k]!]!;
@@ -201,6 +212,39 @@ export function critique(prims: Prim[], brief: Brief): Critique {
   if (unrooted) {
     pen.rooting = clamp(unrooted * 0.1, 0, 0.3);
     notes.push(`${unrooted} unrooted protrusion(s)`);
+  }
+
+  // 4b — STANDOFF: rule 4 only watches the JOINT zone, so an armour mass could
+  // stand proud of its own shell with nothing under it and never be flagged —
+  // which is how a full-length keel ridge survived as a bare bar down the shin.
+  // A narrow mass that protrudes has to earn it: either it FAIRS IN (a grouped
+  // multi-segment run that tapers back into the surface) or it is ROOTED by a
+  // frame collar. A single constant section standing off a flat face reads as
+  // a part stuck on, not as styling.
+  {
+    const masses = prims.filter((p) => p.tier === "mass");
+    const partW = span(prims.map(box)).w || 1;
+    let standoff = 0;
+    for (const p of masses) {
+      if (p.zone !== "armor" || p.group) continue;
+      const b = box(p);
+      if (b.w > partW * 0.45) continue; // wide enough to read as a facet
+      let others = -Infinity;
+      for (const q of masses) {
+        if (q === p) continue;
+        const qb = box(q);
+        others = Math.max(others, qb.cz + qb.d / 2);
+      }
+      if (!Number.isFinite(others)) continue;
+      if (b.cz + b.d / 2 - others < b.d * 0.35) continue; // sits in the surface
+      const reach = Math.max(b.w, b.d) * 0.9;
+      if (collars.some((f) => Math.hypot(f.cx - b.cx, f.cy - b.cy, f.cz - b.cz) < reach)) continue;
+      standoff++;
+    }
+    if (standoff) {
+      pen.standoff = clamp(standoff * 0.12, 0, 0.24);
+      notes.push(`${standoff} narrow armour mass(es) stand proud with no fairing or root`);
+    }
   }
 
   // 5 — BALANCE: centre of mass should sit near the part's own axis.

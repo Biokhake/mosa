@@ -285,29 +285,77 @@ export function buildLimbArmour(topology: LimbTopology, ctx: LimbArmourCtx): Lim
     }
     out.push(...panelLines(env, env.depth * 0.5 + env.depth * 0.08, Math.round(clamp(deco * 2, 0, 2)), rhythm));
   } else if (topology === "spine") {
-    // slim shell + a bold central keel ridge
+    // Slim shell + a central keel ridge.
+    //
+    // A keel is a ridge ROLLED OUT OF the shell, not a bar bolted onto it.
+    // Three things decide whether it reads that way:
+    //   - it is wide enough to be a facet. A narrow, deep section is a rod,
+    //     and a rod down the shin reads as a stray part, not as styling.
+    //   - it stands only slightly proud. Depth is what makes it look bolted on.
+    //   - it FAIRS IN at both ends. A constant section running the full span
+    //     turns the shin into a strut with a stick taped to it.
+    // It also stops short of both joints, so it can never foul the knee guard
+    // above or the ankle drum below.
     out.push(...shellPrim(kind, matA, env.wTop, env.wBot, env.h, env.depth * 0.82, 0, env.cy, 0, env.pitch, bevel, sides, profile));
+
     const ridgeKind: PrimKind = brief.edge === "S" ? "wedge" : brief.silhouette === "R" ? "cyl" : "box";
-    const rd = env.depth * 0.5;
-    out.push({
-      kind: ridgeKind,
-      role: matB,
-      size: ridgeKind === "cyl" ? [env.wTop * 0.13, env.wTop * 0.11, env.h * 0.94] : [env.wTop * 0.2, env.h * 0.96, rd],
-      pos: [0, env.cy, env.depth * 0.4],
-      rot: [env.pitch, 0, 0],
-      sides,
-      tier: "mass",
-      zone: "armor",
-      bevel: brief.edge === "S" ? 0.05 : bevel,
-    });
+    const round = ridgeKind === "cyl";
+    const shellFrontZ = env.depth * 0.41; // front face of the slim shell
+    const rTop = env.cy + env.h * 0.32; // clear of the knee guard
+    const rBot = env.cy - env.h * 0.3; // dies out well above the ankle
+    const rH = rTop - rBot;
+    const rW = env.wTop * (round ? 0.3 : 0.4); // a facet, not a rod
+    const proud = env.depth * (brief.edge === "S" ? 0.13 : 0.1);
+    // seat the ridge ON the shell face — a deep buried tail is volume nobody
+    // ever sees, and it drags the whole run back inside the shell
+    const zBack = shellFrontZ - env.depth * 0.06;
+
+    // Stops down the keel: [distance from top, width scale, protrusion scale].
+    // A quick rise, a long constant run, a slower die-out into the shell.
+    const STOPS: Array<[number, number, number]> = [
+      [0, 0.44, 0.3],
+      [0.22, 1, 1],
+      [0.68, 0.94, 0.9],
+      [1, 0.36, 0.22],
+    ];
+    // one logical mass, so the layering rule does not read it as a plate stack
+    const gid = `keel:${Math.round(env.cy * 1e4)}`;
+    for (let i = 0; i < STOPS.length - 1; i++) {
+      const [t0, w0, p0] = STOPS[i]!;
+      const [t1, w1, p1] = STOPS[i + 1]!;
+      const yTop = rTop - rH * t0;
+      const yBot = rTop - rH * t1;
+      const bh = yTop - yBot;
+      const front = shellFrontZ + proud * ((p0 + p1) / 2);
+      const bd = front - zBack;
+      // a cyl band tapers for free between the two stops; the flat kinds step,
+      // which is what actually shows the fairing. NB a cyl's front face is one
+      // RADIUS ahead of its centre, not half its `size[2]` — that is length.
+      const cylR = rW * Math.max(w0, w1) * 0.5;
+      out.push({
+        kind: ridgeKind,
+        role: matB,
+        size: round ? [rW * w1 * 0.5, rW * w0 * 0.5, bh] : [rW * ((w0 + w1) / 2), bh, bd],
+        pos: [0, (yTop + yBot) / 2, round ? front - cylR : zBack + bd * 0.5],
+        rot: [env.pitch, 0, 0],
+        sides,
+        tier: "mass",
+        zone: "armor",
+        bevel: brief.edge === "S" ? 0.05 : bevel,
+        group: gid,
+      });
+    }
     massCount = 2;
-    frontZ = env.depth * 0.4 + rd * 0.5;
+    frontZ = shellFrontZ + proud;
+    // shoulder grooves flanking the keel — outboard of the wider ridge, only
+    // as long as the keel itself, and straddling the shell face so the dark
+    // side of the groove actually shows (fully recessed, it is invisible)
     for (const s of [-1, 1]) {
       out.push({
         kind: "box",
         role: "mechanism",
-        size: [Math.max(0.004, env.wTop * 0.025), env.h * 0.8, env.depth * 0.06],
-        pos: [s * env.wTop * 0.16, env.cy, env.depth * 0.5 - 0.004],
+        size: [Math.max(0.004, env.wTop * 0.025), rH * 0.86, env.depth * 0.06],
+        pos: [s * (rW * 0.5 + env.wTop * 0.07), env.cy + env.h * 0.01, shellFrontZ],
         rot: [env.pitch, 0, 0],
         tier: "panel",
         zone: "armor",
