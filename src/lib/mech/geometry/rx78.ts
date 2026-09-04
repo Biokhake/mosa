@@ -44,24 +44,28 @@ const PI2 = Math.PI / 2;
 
 /** Helmet shell. The face opening is left empty for the mask in `visor`. */
 function helm(): Spec[] {
-  // socket 1.79 — cranium 1.720..1.870, crown to 1.900
+  // socket 1.79 — cranium 1.725..1.868, crown block to 1.888. Width 0.175.
   return [
-    B("prim", 0.19, 0.15, 0.175, 0, 0.005, -0.014),
-    Trap("prim", 0.135, 0.19, 0.032, 0, 0.096, -0.014, 0, 0, 0, 0.165),
-    B("prim", 0.152, 0.034, 0.055, 0, 0.066, 0.062),
-    B("prim", 0.032, 0.115, 0.07, 0.075, -0.014, 0.054),
-    B("prim", 0.032, 0.115, 0.07, -0.075, -0.014, 0.054),
-    Trap("prim", 0.128, 0.17, 0.09, 0, -0.006, -0.094, -0.1, 0, 0, 0.06),
+    B("prim", 0.175, 0.143, 0.165, 0, 0.006, -0.012),
+    Trap("prim", 0.125, 0.175, 0.03, 0, 0.092, -0.012, 0, 0, 0, 0.155),
+    // the raised block on the crown centreline
+    B("prim", 0.05, 0.022, 0.06, 0, 0.107, 0.005),
+    // brow shelf the crest hub seats against
+    B("prim", 0.14, 0.03, 0.05, 0, 0.062, 0.06),
+    Trap("prim", 0.118, 0.16, 0.085, 0, -0.008, -0.09, -0.1, 0, 0, 0.055),
   ];
 }
 
 /** The black face mask: the whole front of the head is a dark recess. */
 function visorMask(): Spec[] {
-  // socket 1.78 — the mask fills the face opening, 1.702..1.858
+  // socket 1.78 — the mask fills the face opening 1.706..1.852
   return [
-    B("dark", 0.126, 0.156, 0.034, 0, -0.001, 0),
-    B("dark", 0.13, 0.018, 0.04, 0, 0.062, 0.004),
-    Wedge("dark", 0.02, 0.07, 0.026, 0, 0.0, 0.018),
+    B("dark", 0.115, 0.146, 0.03, 0, -0.001, 0),
+    B("dark", 0.12, 0.016, 0.036, 0, 0.058, 0.004),
+    // centre ridge: brow to chin
+    Wedge("prim", 0.022, 0.085, 0.028, 0, -0.012, 0.018),
+    // projecting chin block at the base of the ridge
+    Trap("prim", 0.03, 0.024, 0.03, 0, -0.056, 0.02, 0, 0, 0, 0.03),
   ];
 }
 
@@ -86,14 +90,15 @@ function brow(): Spec[] {
  * whole here because the crest slot is on the centreline and is not mirrored.
  */
 function crest(): Spec[] {
-  // socket 1.88 — hub 1.866..1.894, blade tips reach ~1.955
+  // socket 1.88 — hub at the forehead, blade tips out to x +/-0.132, level with
+  // the crown at 1.90. Span is ~1.5 head widths, which is what makes it read.
   const blade = (s: number): Spec[] => [
-    B("trim", 0.062, 0.012, 0.018, s * 0.036, 0.012, -0.006, 0, 0, s * 0.5),
-    B("trim", 0.028, 0.01, 0.015, s * 0.065, 0.035, -0.006, 0, 0, s * 0.66),
+    B("trim", 0.085, 0.012, 0.016, s * 0.045, 0.006, -0.008, 0, 0, s * 0.2),
+    B("trim", 0.062, 0.009, 0.013, s * 0.105, 0.018, -0.008, 0, 0, s * 0.28),
   ];
   return [
-    B("acc", 0.044, 0.028, 0.03, 0, -0.014, 0),
-    Wedge("acc", 0.036, 0.022, 0.024, 0, -0.012, 0.018),
+    B("acc", 0.03, 0.022, 0.026, 0, -0.014, 0.004),
+    Wedge("acc", 0.026, 0.03, 0.02, 0, -0.03, 0.014, 0, 0, Math.PI),
     ...blade(1),
     ...blade(-1),
   ];
@@ -101,17 +106,23 @@ function crest(): Spec[] {
 
 /** Side vent covers. Authored for +X. */
 function ear(): Spec[] {
+  // socket +/-0.115, 1.78 — the side duct block
   return [
-    B("prim", 0.028, 0.072, 0.092, 0, -0.004, -0.008),
-    B("trim", 0.014, 0.052, 0.066, 0.016, -0.004, -0.005),
-    ...[0, 1, 2].map((i) => B("dark", 0.007, 0.007, 0.06, 0.024, 0.014 - i * 0.017, -0.005)),
-    C("joint", 0.019, 0.019, 0.024, -0.014, -0.004, -0.008, 0, 0, PI2, 10),
+    B("prim", 0.026, 0.078, 0.088, 0, -0.004, -0.008),
+    B("trim", 0.012, 0.056, 0.062, 0.015, -0.004, -0.005),
+    ...[0, 1, 2].map((i) => B("dark", 0.007, 0.007, 0.056, 0.022, 0.014 - i * 0.018, -0.005)),
+    C("joint", 0.018, 0.018, 0.022, -0.013, -0.004, -0.008, 0, 0, PI2, 10),
   ];
 }
 
 /** Cheek plate below the temple. Authored for +X. */
 function cheek(): Spec[] {
-  return [Wedge("prim", 0.03, 0.06, 0.052, 0, -0.006, -0.008), B("dark", 0.016, 0.036, 0.022, -0.014, -0.012, 0.012)];
+  // socket +/-0.095, 1.73 — a stack of vertical louvres beside the mask
+  return [
+    B("prim", 0.026, 0.078, 0.05, 0, 0.004, -0.004),
+    B("dark", 0.014, 0.07, 0.03, 0.009, 0.004, 0.016),
+    ...[0, 1, 2, 3].map((i) => B("metal", 0.016, 0.008, 0.032, 0.009, 0.026 - i * 0.017, 0.017)),
+  ];
 }
 
 /** The chin block that closes the mask from below. */
@@ -143,12 +154,18 @@ function jaw(): Spec[] {
 
 /** Neck column plus the collar the head sits in. */
 function collar(): Spec[] {
-  // socket 1.58 — the column bridges 1.552..1.646 to meet the jaw
+  // socket 1.58 — neck column 1.552..1.646, plus the ribbed guard across the
+  // front of the throat, which reads from any distance and was missing
   return [
-    C("dark", 0.034, 0.038, 0.094, 0, 0.019, -0.008, 0, 0, 0, 12),
-    Torus("joint", 0.04, 0.009, 0, 0.056, -0.008, PI2, 0, 0, 14),
-    B("prim", 0.15, 0.032, 0.1, 0, -0.016, 0),
-    Wedge("prim", 0.14, 0.05, 0.04, 0, 0.012, -0.058, -0.35),
+    C("dark", 0.032, 0.036, 0.094, 0, 0.019, -0.01, 0, 0, 0, 12),
+    Torus("joint", 0.038, 0.009, 0, 0.056, -0.01, PI2, 0, 0, 14),
+    B("prim", 0.145, 0.03, 0.095, 0, -0.018, -0.004),
+    // ribbed throat guard, pitched forward
+    Trap("prim", 0.1, 0.135, 0.055, 0, 0.014, 0.052, 0.42, 0, 0, 0.05),
+    ...[0, 1, 2, 3].map((i) =>
+      B("dark", 0.104 - i * 0.008, 0.006, 0.05, 0, 0.034 - i * 0.014, 0.058 + i * 0.006, 0.42),
+    ),
+    Wedge("prim", 0.135, 0.045, 0.038, 0, 0.012, -0.058, -0.35),
   ];
 }
 
@@ -174,10 +191,13 @@ function chestCore(): Spec[] {
 
 /** The twin intakes on the upper chest. Authored for +X. */
 function pec(): Spec[] {
+  // socket +/-0.13, 1.46, 0.09 — a canted louvre stack, taller than it is wide
   return [
-    Trap("trim", 0.062, 0.078, 0.075, 0, 0, 0, 0, 0, 0, 0.05),
-    B("dark", 0.05, 0.05, 0.022, 0, -0.004, 0.026),
-    ...[0, 1, 2].map((i) => B("metal", 0.046, 0.005, 0.024, 0, 0.012 - i * 0.012, 0.028)),
+    B("prim", 0.062, 0.095, 0.05, 0, 0.004, 0, 0, 0, -0.22),
+    B("dark", 0.048, 0.082, 0.024, 0.002, 0.004, 0.02, 0, 0, -0.22),
+    ...[0, 1, 2, 3, 4].map((i) =>
+      B("metal", 0.05, 0.006, 0.028, 0.002, 0.032 - i * 0.016, 0.022, 0, 0, -0.22),
+    ),
   ];
 }
 
@@ -224,19 +244,24 @@ function pelvis(): Spec[] {
 
 /** Two hinged plates, not one apron. */
 function skirtF(): Spec[] {
-  const plate = (s: number): Spec[] => [
-    B("prim", 0.082, 0.155, 0.045, s * 0.05, -0.062, 0, 0.14),
-    B("trim", 0.055, 0.026, 0.014, s * 0.05, -0.012, 0.026, 0.14),
-    Wedge("prim", 0.07, 0.045, 0.03, s * 0.05, -0.13, 0.012, 0.14),
+  // socket 1.02, z 0.12 — the dominant plate of the waist
+  return [
+    B("prim", 0.2, 0.15, 0.055, 0, -0.06, 0, 0.1),
+    // the big central recess
+    B("dark", 0.115, 0.09, 0.02, 0, -0.058, 0.03, 0.1),
+    B("prim", 0.09, 0.068, 0.014, 0, -0.058, 0.04, 0.1),
+    // the marker at the top edge of the plate
+    Wedge("trim", 0.036, 0.026, 0.018, 0, 0.008, 0.026, 0, 0, Math.PI),
+    Trap("prim", 0.16, 0.2, 0.03, 0, -0.142, 0.004, 0.1, 0, 0, 0.05),
   ];
-  return [...plate(1), ...plate(-1)];
 }
 
 function skirtSide(): Spec[] {
+  // socket +/-0.16, 1.02 — a rounded plate hung off the hip
   return [
-    B("prim", 0.048, 0.165, 0.125, 0.012, -0.062, -0.008, 0, 0, -0.09),
-    B("dark", 0.022, 0.05, 0.1, -0.014, 0.01, -0.008),
-    B("trim", 0.03, 0.018, 0.05, 0.024, -0.115, 0.01),
+    B("prim", 0.05, 0.145, 0.115, 0.014, -0.058, -0.005, 0, 0, -0.08),
+    B("dark", 0.02, 0.045, 0.09, -0.012, 0.012, -0.005),
+    B("trim", 0.028, 0.016, 0.045, 0.026, -0.108, 0.008),
   ];
 }
 
@@ -251,16 +276,15 @@ function skirtB(): Spec[] {
  * with a red band near the crown and an angled cut on the outer bottom.
  */
 function shoulder(): Spec[] {
-  // socket y 1.46, x 0.30 — the pauldron owns 1.372..1.548 and reaches out to
-  // x 0.44, which is what makes this design read wide from the front
+  // socket 1.46, x 0.30 — pauldron spans x 0.205..0.355, i.e. a shoulder span
+  // of about 3.9 head widths against the ~3.5 measured off the reference
   return [
-    B("prim", 0.185, 0.165, 0.185, 0.055, -0.004, 0),
-    Trap("prim", 0.125, 0.185, 0.045, 0.055, 0.1, 0, 0, 0, 0, 0.175),
-    B("acc", 0.178, 0.02, 0.178, 0.055, 0.082, 0),
-    Wedge("prim", 0.17, 0.055, 0.055, 0.055, -0.095, 0.0, -0.22),
-    // inboard yoke reaching the chest socket
-    B("dark", 0.07, 0.105, 0.105, -0.055, -0.005, 0),
-    C("joint", 0.036, 0.036, 0.075, -0.07, -0.005, 0, 0, 0, PI2, 12),
+    B("prim", 0.15, 0.145, 0.15, -0.02, -0.004, 0),
+    Trap("prim", 0.105, 0.15, 0.038, -0.02, 0.088, 0, 0, 0, 0, 0.145),
+    B("acc", 0.144, 0.016, 0.144, -0.02, 0.07, 0),
+    Wedge("prim", 0.14, 0.048, 0.05, -0.02, -0.086, 0.0, -0.2),
+    B("dark", 0.06, 0.095, 0.095, -0.115, -0.005, 0),
+    C("joint", 0.034, 0.034, 0.07, -0.125, -0.005, 0, 0, 0, PI2, 12),
   ];
 }
 
