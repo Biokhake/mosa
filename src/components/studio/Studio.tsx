@@ -16,7 +16,7 @@ import { HangarCanvas } from "@/components/hangar/HangarCanvas";
 import { GROUPS } from "@/lib/mech/types";
 import { SLOTS, SLOT_BY_ID, variantLabel } from "@/lib/mech/catalog";
 import { QUAD_RANGES, STYLES } from "@/lib/mech/codes";
-import { clampPanel, defaultPanels, defaultScaleFor, useStudio } from "@/lib/mech/store";
+import { defaultScaleFor, useStudio } from "@/lib/mech/store";
 import { AxisSliders, HsbSliders } from "./AxisSliders";
 import { DEFAULT_VISOR } from "@/lib/mech/palette";
 import { getRecipe } from "@/lib/mech/recipes";
@@ -98,6 +98,7 @@ export function Studio() {
   const hideAllParts = useStudio((s) => s.hideAllParts);
   const refreshAll = useStudio((s) => s.refreshAll);
   const resetCamera = useStudio((s) => s.resetCamera);
+  const resetPanel = useStudio((s) => s.resetPanel);
   const focusPanel = useStudio((s) => s.focusPanel);
   const panelZ = useStudio((s) => s.panelZ);
   const detailsTick = useStudio((s) => s.detailsTick);
@@ -113,25 +114,26 @@ export function Studio() {
 
   useEffect(() => {
     rehydrate();
+    // one pass after hydration so a layout saved at another window size
+    // (or the SSR fallback) is re-fitted to this viewport
+    useStudio.getState().syncPanels();
     const flush = () => useStudio.getState().saveNow();
     const onHide = () => {
       if (document.visibilityState === "hidden") flush();
     };
     window.addEventListener("beforeunload", flush);
     document.addEventListener("visibilitychange", onHide);
+    let raf = 0;
     const onResize = () => {
-      const cur = useStudio.getState().panels;
-      for (const id of Object.keys(cur)) {
-        const rect = cur[id];
-        if (!rect) continue;
-        useStudio.getState().setPanel(id, clampPanel(id, rect));
-      }
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => useStudio.getState().syncPanels());
     };
     window.addEventListener("resize", onResize);
     return () => {
       window.removeEventListener("beforeunload", flush);
       document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("resize", onResize);
+      cancelAnimationFrame(raf);
     };
   }, [rehydrate]);
 
@@ -587,7 +589,7 @@ export function Studio() {
                   rect={panels.parts}
                   z={zOf("parts")}
                   onChange={(p) => setPanel("parts", p)}
-                  onReset={() => setPanel("parts", defaultPanels().parts)}
+                  onReset={() => resetPanel("parts")}
                   onFocus={() => focusPanel("parts")}
                   extra={visToggle}
                 >
@@ -600,7 +602,7 @@ export function Studio() {
                   rect={panels.adjust}
                   z={zOf("adjust")}
                   onChange={(p) => setPanel("adjust", p)}
-                  onReset={() => setPanel("adjust", defaultPanels().adjust)}
+                  onReset={() => resetPanel("adjust")}
                   onFocus={() => focusPanel("adjust")}
                   extra={
                     <button

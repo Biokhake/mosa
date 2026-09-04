@@ -215,6 +215,8 @@ export type StudioState = {
   theme: ThemeMode;
   poseId: string;
   panels: Record<string, PanelRect>;
+  /** true once the user has dragged/resized a panel — stops auto-relayout */
+  panelMoved: boolean;
   light: string;
   panelZ: string[];
   camTick: number;
@@ -247,6 +249,10 @@ export type StudioState = {
   closePoseMenu: () => void;
   setPanel: (id: string, patch: Partial<PanelRect>) => void;
   resetPanels: () => void;
+  /** reset one panel to its default rect for the current viewport */
+  resetPanel: (id: string) => void;
+  /** re-fit panels to the current viewport (called on window resize) */
+  syncPanels: () => void;
   showAllParts: () => void;
   hideAllParts: () => void;
   refreshAll: () => void;
@@ -265,6 +271,7 @@ type PersistBlob = {
   theme?: ThemeMode;
   poseId?: string;
   panels?: Record<string, PanelRect>;
+  panelMoved?: boolean;
   light?: string;
   selected?: string;
   explode?: number;
@@ -283,6 +290,7 @@ type SessionSlice = Pick<
   | "theme"
   | "poseId"
   | "panels"
+  | "panelMoved"
   | "light"
   | "selected"
   | "explode"
@@ -301,6 +309,7 @@ function snapshot(s: StudioState): SessionSlice {
     theme: s.theme,
     poseId: s.poseId,
     panels: s.panels,
+    panelMoved: s.panelMoved,
     light: s.light,
     selected: s.selected,
     explode: s.explode,
@@ -332,6 +341,7 @@ function emptySession(): SessionSlice {
     theme: "light",
     poseId: "relaxed",
     panels: defaultPanels(),
+    panelMoved: false,
     light: DEFAULT_VISOR,
     selected: "helm",
     explode: 0,
@@ -389,6 +399,9 @@ function load(): SessionSlice {
         parts: restorePanel("parts", parsed.panels?.parts),
         adjust: restorePanel("adjust", parsed.panels?.adjust),
       },
+      // pre-v11 saves have no flag; treat any stored layout as user-arranged
+      // only if it was explicitly moved, otherwise let syncPanels re-fit it
+      panelMoved: parsed.panelMoved === true,
       selected: parsed.selected && SLOT_BY_ID[parsed.selected] ? parsed.selected : base.selected,
       explode: typeof parsed.explode === "number" ? parsed.explode : 0,
       autoRotate: parsed.autoRotate === true,
@@ -425,6 +438,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   theme: initial.theme,
   poseId: initial.poseId,
   panels: initial.panels,
+  panelMoved: initial.panelMoved ?? false,
   light: initial.light,
   panelZ: ["parts", "adjust"],
   camTick: 0,
@@ -708,12 +722,47 @@ export const useStudio = create<StudioState>((set, get) => ({
   setPanel: (id, patch) => {
     set((st) => {
       const next = { ...st.panels[id]!, ...patch };
-      return { panels: { ...st.panels, [id]: clampPanel(id, next) } };
+      // a position / size change is a deliberate arrangement; folding is not
+      const moved =
+        st.panelMoved ||
+        patch.x != null ||
+        patch.y != null ||
+        patch.w != null ||
+        patch.h != null;
+      return { panels: { ...st.panels, [id]: clampPanel(id, next) }, panelMoved: moved };
     });
     scheduleSave(get);
   },
   resetPanels: () => {
-    set({ panels: defaultPanels() });
+    set({ panels: defaultPanels(), panelMoved: false });
+    scheduleSave(get);
+  },
+  resetPanel: (id) => {
+    set((st) => {
+      const def = defaultPanels()[id];
+      if (!def) return st;
+      return {
+        panels: { ...st.panels, [id]: { ...def, folded: st.panels[id]?.folded ?? false } },
+      };
+    });
+    scheduleSave(get);
+  },
+  syncPanels: () => {
+    set((st) => {
+      if (st.panelMoved) {
+        // the user arranged them — only keep them on screen
+        const panels: Record<string, PanelRect> = {};
+        for (const [id, r] of Object.entries(st.panels)) panels[id] = clampPanel(id, r);
+        return { panels };
+      }
+      // auto layout: dock left / right and fill the height, keep fold state
+      const def = defaultPanels();
+      const panels: Record<string, PanelRect> = {};
+      for (const [id, r] of Object.entries(def)) {
+        panels[id] = { ...r, folded: st.panels[id]?.folded ?? false, pinned: st.panels[id]?.pinned ?? false };
+      }
+      return { panels };
+    });
     scheduleSave(get);
   },
   showAllParts: () => {
@@ -757,6 +806,7 @@ export const useStudio = create<StudioState>((set, get) => ({
       return {
         slots,
         panels: defaultPanels(),
+        panelMoved: false,
         groupXform: emptyGroupXform(),
         explode: 0,
         camTick: st.camTick + 1,

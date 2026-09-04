@@ -296,7 +296,6 @@ function StudioEnv() {
     gl.toneMapping = THREE.NoToneMapping;
     gl.outputColorSpace = THREE.SRGBColorSpace;
     gl.shadowMap.enabled = true;
-    gl.shadowMap.type = THREE.PCFShadowMap;
     const room = new RoomEnvironment();
     const pmrem = new THREE.PMREMGenerator(gl);
     const tex = pmrem.fromScene(room, 0.04).texture;
@@ -346,17 +345,31 @@ export function HangarCanvas() {
   const camTick = useStudio((s) => s.camTick);
   const bg = theme === "light" ? "#f4f1ea" : "#0b0c0e";
 
+  // R3F's ResizeObserver occasionally misses the initial layout pass and the
+  // <canvas> stays at its 300x150 intrinsic default. A window resize is the
+  // reliable fallback path — nudge it once the section has real dimensions.
+  useEffect(() => {
+    let n = 0;
+    const kick = () => {
+      window.dispatchEvent(new Event("resize"));
+      if (++n < 4) requestAnimationFrame(kick);
+    };
+    const id = requestAnimationFrame(kick);
+    return () => cancelAnimationFrame(id);
+  }, []);
+
   return (
     <Canvas
-      shadows
+      shadows="percentage"
       dpr={[1, 1.75]}
+      resize={{ scroll: false, debounce: 0 }}
       camera={{ position: [2.4, 1.6, 3.4], fov: 38, near: 0.1, far: 50 }}
       gl={{ antialias: true, preserveDrawingBuffer: true, toneMapping: THREE.NoToneMapping }}
       onCreated={({ gl }) => {
         gl.toneMapping = THREE.NoToneMapping;
-        gl.shadowMap.type = THREE.PCFShadowMap;
       }}
-      className="h-full w-full touch-none bg-bg"
+      style={{ position: "absolute", inset: 0 }}
+      className="touch-none bg-bg"
     >
       <color attach="background" args={[bg]} />
       <fog attach="fog" args={[bg, 9, 20]} />
