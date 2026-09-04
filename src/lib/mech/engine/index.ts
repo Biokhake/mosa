@@ -25,7 +25,7 @@ import { buildRig, shinView, thighView } from "./skeleton";
 import type { ShinRig } from "./skeleton";
 import { grammarShin, shinInterfaces } from "./grammar/shin";
 import { grammarThigh, thighInterfaces } from "./grammar/thigh";
-import { validateAssembly } from "./assembly";
+import { validateAssembly, partOrigin } from "./assembly";
 import { topologyPool, topologyAffinity } from "./grammar/topology";
 import type { LimbTopology } from "./grammar/topology";
 import { romSweepShin, romSweepThigh } from "./mechanics/romSweep";
@@ -33,6 +33,7 @@ import { massReportShin, massReportLimb } from "./mechanics/mass";
 import { measureMetrics, classifyBand } from "./classify";
 import { critique } from "./critic";
 import { scoreProportions } from "./proportionScore";
+import { critiqueKit } from "./kitCritic";
 import { refine } from "./refine";
 import { generatePopulation } from "./population";
 import type { Population } from "./population";
@@ -43,7 +44,10 @@ export { makeBrief, briefFromLegacyId, PHILOSOPHIES } from "./brief";
 export { measureMetrics, classifyBand, classifyBand as _classifyBand, assignId, bandLetters } from "./classify";
 export { PHILOSOPHIES as DESIGN_PHILOSOPHIES } from "./brief";
 export { critique } from "./critic";
+export { repair, dropBuried, dropRedundant, rootProtrusions } from "./repair";
 export { scoreProportions } from "./proportionScore";
+export { critiqueKit } from "./kitCritic";
+export type { KitCritique } from "./kitCritic";
 export type { ProportionReport } from "./proportionScore";
 export { rasterize, measureSilhouette, hiddenShare, visiblePrims } from "./raster";
 export type { Silhouette, SilhouetteMetrics } from "./raster";
@@ -91,6 +95,10 @@ function shinArtifact(brief: Brief, prop: Proportions, view: ShinRig): SlotArtif
       return { prims, romOk: rom.ok, romCollisions: rom.collisions };
     },
     REFINE_COUNT,
+    (prims) => {
+      const rom = romSweepShin(prims, view);
+      return { romOk: rom.ok, romCollisions: rom.collisions };
+    },
   );
   const mass = massReportShin(best.prims, view);
   return {
@@ -120,6 +128,7 @@ function shinArtifact(brief: Brief, prop: Proportions, view: ShinRig): SlotArtif
       variant: best.variant,
       topology,
       attempts: attempts.length,
+      repairs: best.repairs,
     },
   };
 }
@@ -135,6 +144,10 @@ function thighArtifact(brief: Brief, prop: Proportions, rig: Rig): SlotArtifact 
       return { prims, romOk: rom.ok, romCollisions: rom.collisions };
     },
     REFINE_COUNT,
+    (prims) => {
+      const rom = romSweepThigh(prims, view);
+      return { romOk: rom.ok, romCollisions: rom.collisions };
+    },
   );
   const mass = massReportLimb(best.prims, view.joints);
   return {
@@ -164,6 +177,7 @@ function thighArtifact(brief: Brief, prop: Proportions, rig: Rig): SlotArtifact 
       variant: best.variant,
       topology,
       attempts: attempts.length,
+      repairs: best.repairs,
     },
   };
 }
@@ -228,12 +242,27 @@ export function designKit(brief: Brief): KitArtifact {
   const thigh = designSlotWithRig("thigh", brief, rig);
   if (thigh) slots.thigh = thigh;
 
-  const allPrims = Object.values(slots).flatMap((s) => s!.prims);
+  // Each slot's prims live in that PART's own frame. Measuring them pooled
+  // would overlay the shin on the thigh instead of stacking them, so place
+  // every part into body space first — the assembled silhouette is the thing
+  // a viewer actually reads.
+  const allPrims = Object.entries(slots).flatMap(([slot, s]) => {
+    const o = partOrigin(slot as SlotId, rig);
+    if (!o) return s!.prims;
+    return s!.prims.map((p) => ({
+      ...p,
+      pos: [p.pos[0] + o[0], p.pos[1] + o[1], p.pos[2] + o[2]] as [number, number, number],
+    }));
+  });
   const interfaces = Object.entries(slots).flatMap(([slot, s]) =>
     (s!.interfaces ?? []).map((i) => ({ ...i, id: `${slot}:${i.id}` })),
   );
   const metrics = measureMetrics(allPrims);
-  return { brief, slots, interfaces, metrics, band: classifyBand(metrics) };
+  const kit: KitArtifact = { brief, slots, interfaces, metrics, band: classifyBand(metrics) };
+  const kc = critiqueKit(kit, brief, allPrims);
+  kit.aesthetic = { score: kc.score, penalties: kc.penalties, notes: kc.notes, accentShare: kc.accentShare };
+  kit.proportion = scoreProportions(resolveProportions(brief), brief).score;
+  return kit;
 }
 
 /**

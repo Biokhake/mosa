@@ -321,6 +321,8 @@ export interface AestheticReport {
   topology: string;
   /** how many candidates were built and scored */
   attempts: number;
+  /** what the repair pass fixed on the winning candidate */
+  repairs?: string[];
 }
 
 /** The full output for one designed slot. */
@@ -342,6 +344,15 @@ export interface KitArtifact {
   /** every designed part's interfaces, prefixed by slot */
   interfaces: PartInterface[];
   metrics: MetricVector;
+  /** whole-assembly composition critique (see kitCritic.ts) */
+  aesthetic?: {
+    score: number;
+    penalties: Record<string, number>;
+    notes: string[];
+    accentShare: number;
+  };
+  /** 0..1 proportion-target agreement */
+  proportion?: number;
   /** assigned only after population classification */
   id?: string;
   band?: Band;

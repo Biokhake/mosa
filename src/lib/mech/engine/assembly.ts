@@ -13,7 +13,7 @@
 import type { KitArtifact, MountKind, PartInterface, Rig, SlotId } from "./types";
 
 /** Body-space origin of an engine slot's local frame (bone midpoint). */
-function partOrigin(slot: SlotId, rig: Rig, side: "R" | "L" = "R"): [number, number, number] | null {
+export function partOrigin(slot: SlotId, rig: Rig, side: "R" | "L" = "R"): [number, number, number] | null {
   const bone = rig.bones[`${slot}${side}`];
   const rest = rig.restPos[`${slot}${side}`];
   if (!bone || !rest) return null;
