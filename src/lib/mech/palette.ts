@@ -24,7 +24,7 @@ function std(color: string, extra: ConstructorParameters<typeof THREE.MeshStanda
     color,
     metalness: 0.34,
     roughness: 0.4,
-    envMapIntensity: 1.15,
+    envMapIntensity: 0.85,
     side: THREE.FrontSide,
     ...extra,
   });
@@ -42,7 +42,7 @@ function lacquer(color: string, extra: ConstructorParameters<typeof THREE.MeshPh
     roughness: 0.46,
     clearcoat: 0.62,
     clearcoatRoughness: 0.24,
-    envMapIntensity: 1.1,
+    envMapIntensity: 0.8,
     side: THREE.FrontSide,
     ...extra,
   });

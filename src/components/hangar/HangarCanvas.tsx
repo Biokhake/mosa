@@ -262,13 +262,13 @@ function Lights({ theme }: { theme: "light" | "dark" }) {
           shadow-camera-top={4}
           shadow-camera-bottom={-4}
         />
-        <directionalLight position={[-5, 3, -2]} intensity={0.35} color="#9aa8b8" />
+        <directionalLight position={[-5, 3, -2]} intensity={0.22} color="#9aa8b8" />
       </>
     );
   }
   return (
     <>
-      <hemisphereLight args={["#cfd4dc", "#1a1c20", 0.55]} />
+      <hemisphereLight args={["#cfd4dc", "#1a1c20", 0.3]} />
       <directionalLight
         position={[4.5, 8, 5]}
         intensity={1.5}
@@ -283,8 +283,8 @@ function Lights({ theme }: { theme: "light" | "dark" }) {
         shadow-camera-top={4}
         shadow-camera-bottom={-4}
       />
-      <directionalLight position={[-5, 3, -2]} intensity={0.45} color="#9aa8b8" />
-      <directionalLight position={[0, 2, 6]} intensity={0.25} color="#e8e6e1" />
+      <directionalLight position={[-5, 3, -2]} intensity={0.28} color="#9aa8b8" />
+      <directionalLight position={[0, 2, 6]} intensity={0.14} color="#e8e6e1" />
     </>
   );
 }
@@ -301,7 +301,7 @@ function StudioEnv() {
     const pmrem = new THREE.PMREMGenerator(gl);
     const tex = pmrem.fromScene(room, 0.04).texture;
     scene.environment = tex;
-    scene.environmentIntensity = 0.62;
+    scene.environmentIntensity = 0.42;
     room.dispose();
     return () => {
       scene.environment = null;
@@ -400,9 +400,9 @@ export function HangarCanvas() {
             halfRes
           />
           <Bloom
-            luminanceThreshold={0.62}
-            luminanceSmoothing={0.25}
-            intensity={0.55}
+            luminanceThreshold={1.15}
+            luminanceSmoothing={0.12}
+            intensity={0.7}
             mipmapBlur
           />
           {/* the composer owns tone mapping now — the renderer stays linear so
