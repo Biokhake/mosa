@@ -18,12 +18,32 @@ const shared = new Map<string, Palette>();
 const lineMatDark = new THREE.LineBasicMaterial({ color: 0x1a1a1e, transparent: true, opacity: 0.35 });
 const lineMatLight = new THREE.LineBasicMaterial({ color: 0x2a2a30, transparent: true, opacity: 0.28 });
 
+/** Bare mechanical surfaces — frame, mechanism, polished metal. */
 function std(color: string, extra: ConstructorParameters<typeof THREE.MeshStandardMaterial>[0] = {}) {
   return new THREE.MeshStandardMaterial({
     color,
     metalness: 0.34,
     roughness: 0.4,
     envMapIntensity: 1.15,
+    side: THREE.FrontSide,
+    ...extra,
+  });
+}
+
+/**
+ * Painted armour. A clearcoat lobe over a fairly matte base is what separates
+ * "lacquered kit panel" from "flat CG plastic" — it gives a tight specular
+ * highlight that rides the bevels independently of the diffuse colour.
+ */
+function lacquer(color: string, extra: ConstructorParameters<typeof THREE.MeshPhysicalMaterial>[0] = {}) {
+  return new THREE.MeshPhysicalMaterial({
+    color,
+    metalness: 0.16,
+    roughness: 0.46,
+    clearcoat: 0.62,
+    clearcoatRoughness: 0.24,
+    envMapIntensity: 1.1,
+    side: THREE.FrontSide,
     ...extra,
   });
 }
@@ -107,30 +127,31 @@ export function getPalette(
   const metal = paint2 ?? "#8b919a";
   const joint = paint2 ? shade(paint2, 0.42) : "#3d4048";
   const visorHex = visorPaint && paint ? paint : lightHex;
+  // Armour roles get the clearcoat treatment; bare mechanical roles stay
+  // standard and deliberately MATTE, so the eye separates shell from frame.
   const pal: Palette = {
-    prim: std(prim),
-    sec: std(sec, { metalness: 0.35, roughness: 0.4 }),
-    acc: std(acc, { metalness: 0.32, roughness: 0.42 }),
-    trim: std(trim, { metalness: 0.45, roughness: 0.35 }),
-    dark: std(dark, { metalness: 0.5, roughness: 0.4 }),
-    metal: std(metal, { metalness: 0.78, roughness: 0.28 }),
+    prim: lacquer(prim),
+    sec: lacquer(sec, { roughness: 0.5, clearcoat: 0.5 }),
+    acc: lacquer(acc, { metalness: 0.2, roughness: 0.36, clearcoat: 0.72, clearcoatRoughness: 0.16 }),
+    trim: lacquer(trim, { metalness: 0.55, roughness: 0.3, clearcoat: 0.35 }),
+    dark: std(dark, { metalness: 0.42, roughness: 0.66, envMapIntensity: 0.7 }),
+    metal: std(metal, { metalness: 0.92, roughness: 0.24, envMapIntensity: 1.35 }),
     visor: std(visorHex, {
-      metalness: 0.92,
-      roughness: 0.08,
-      envMapIntensity: 1.4,
+      metalness: 0.9,
+      roughness: 0.07,
+      envMapIntensity: 1.5,
       emissive: visorHex,
-      emissiveIntensity: 0.55,
+      emissiveIntensity: 1.5,
     }),
     glow: std(lightHex, {
-      metalness: 0.15,
-      roughness: 0.22,
+      metalness: 0.12,
+      roughness: 0.2,
       envMapIntensity: 0.6,
       emissive: lightHex,
-      emissiveIntensity: 0.85,
+      emissiveIntensity: 1.9,
     }),
-    joint: std(joint, { metalness: 0.62, roughness: 0.32 }),
+    joint: std(joint, { metalness: 0.72, roughness: 0.38, envMapIntensity: 1.0 }),
   };
-  for (const m of Object.values(pal)) m.side = THREE.DoubleSide;
   shared.set(key, pal);
   return pal;
 }

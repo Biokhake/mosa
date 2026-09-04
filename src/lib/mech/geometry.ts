@@ -597,8 +597,11 @@ export function buildPart(
       const minSide = Math.min(bw, bh, bd);
       const isCurved = rec.quad === "SR" || rec.quad === "RR";
       const segs = isCurved ? (rec.quad === "RR" ? 3 : 2) : 1; // 1 segment = clean polished 45-deg chamfer facet
-      const radius = Math.min(minSide * (isCurved ? 0.20 : 0.14), 0.018);
-      const safeRadius = Math.max(0.001, radius);
+      // Chamfer scales with the plate: a flat cap made every edge the same
+      // absolute width, so big armour panels read as unbevelled. With AO on,
+      // a proportional chamfer is what catches the light along an edge.
+      const radius = Math.min(minSide * (isCurved ? 0.22 : 0.15), isCurved ? 0.046 : 0.03);
+      const safeRadius = Math.max(0.0012, radius);
       geo = new RoundedBoxGeometry(bw, bh, bd, segs, safeRadius);
     } else if (sp.t === "wedge") {
       geo = createWedgeGeometry(sp.s[0], sp.s[1], sp.s[2]);

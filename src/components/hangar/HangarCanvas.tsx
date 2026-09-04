@@ -1,5 +1,7 @@
 import { Canvas, useThree } from "@react-three/fiber";
 import { ContactShadows, OrbitControls, Grid } from "@react-three/drei";
+import { Bloom, EffectComposer, N8AO, ToneMapping } from "@react-three/postprocessing";
+import { ToneMappingMode } from "postprocessing";
 import { Suspense, useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
@@ -291,11 +293,10 @@ function StudioEnv() {
   const scene = useThree((s) => s.scene);
   const gl = useThree((s) => s.gl);
   useEffect(() => {
-    gl.toneMapping = THREE.ACESFilmicToneMapping;
-    gl.toneMappingExposure = 1.08;
+    gl.toneMapping = THREE.NoToneMapping;
     gl.outputColorSpace = THREE.SRGBColorSpace;
     gl.shadowMap.enabled = true;
-    gl.shadowMap.type = THREE.PCFSoftShadowMap;
+    gl.shadowMap.type = THREE.PCFShadowMap;
     const room = new RoomEnvironment();
     const pmrem = new THREE.PMREMGenerator(gl);
     const tex = pmrem.fromScene(room, 0.04).texture;
@@ -350,11 +351,10 @@ export function HangarCanvas() {
       shadows
       dpr={[1, 2]}
       camera={{ position: [2.4, 1.6, 3.4], fov: 38, near: 0.1, far: 50 }}
-      gl={{ antialias: true, preserveDrawingBuffer: true, toneMapping: THREE.ACESFilmicToneMapping }}
+      gl={{ antialias: true, preserveDrawingBuffer: true, toneMapping: THREE.NoToneMapping }}
       onCreated={({ gl }) => {
-        gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.toneMappingExposure = 1.08;
-        gl.shadowMap.type = THREE.PCFSoftShadowMap;
+        gl.toneMapping = THREE.NoToneMapping;
+        gl.shadowMap.type = THREE.PCFShadowMap;
       }}
       className="h-full w-full touch-none bg-bg"
     >
@@ -384,6 +384,30 @@ export function HangarCanvas() {
         />
         <CaptureBridge />
         <CameraHome tick={camTick} />
+        {/* Ambient occlusion is what makes a hard-surface model read: it lands
+            in the panel gaps, part seams and recesses that flat shading loses.
+            Bloom is thresholded so only the emissive roles (visor / optics /
+            beams) bleed — nothing else in the palette is emissive. */}
+        <EffectComposer multisampling={4} enableNormalPass>
+          {/* a tight radius so the occlusion lands in panel gaps and part
+              seams rather than shading whole limbs */}
+          <N8AO
+            aoRadius={0.14}
+            distanceFalloff={0.6}
+            intensity={3.2}
+            color="#0b0d12"
+            quality="high"
+          />
+          <Bloom
+            luminanceThreshold={0.62}
+            luminanceSmoothing={0.25}
+            intensity={0.55}
+            mipmapBlur
+          />
+          {/* the composer owns tone mapping now — the renderer stays linear so
+              AO and bloom operate on scene-referred values, not display ones */}
+          <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+        </EffectComposer>
       </Suspense>
       <OrbitControls
         makeDefault
