@@ -20,6 +20,7 @@ export type SlotId =
   | "helm"
   | "collar"
   | "chest"
+  | "chestCore"
   | "cockpit"
   | "pec"
   | "abdomen"

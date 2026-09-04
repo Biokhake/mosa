@@ -13,7 +13,7 @@ import { primsToSpecs } from "../engine/adapters/toMechSpec";
 
 const cache = new Map<string, Spec[]>();
 
-function engineSlot(slot: "shin" | "thigh", id: string): Spec[] {
+function engineSlot(slot: "shin" | "thigh" | "chestCore" | "cockpit", id: string): Spec[] {
   const key = `${slot}:${(id || "SSA-001").toUpperCase()}`;
   const hit = cache.get(key);
   if (hit) return hit;
@@ -29,4 +29,12 @@ export function engineShin(id: string): Spec[] {
 
 export function engineThigh(id: string): Spec[] {
   return engineSlot("thigh", id);
+}
+
+export function engineChestCore(id: string): Spec[] {
+  return engineSlot("chestCore", id);
+}
+
+export function engineCockpit(id: string): Spec[] {
+  return engineSlot("cockpit", id);
 }

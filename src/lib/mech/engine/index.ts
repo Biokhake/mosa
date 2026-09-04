@@ -25,6 +25,7 @@ import { buildRig, shinView, thighView } from "./skeleton";
 import type { ShinRig } from "./skeleton";
 import { grammarShin, shinInterfaces } from "./grammar/shin";
 import { grammarThigh, thighInterfaces } from "./grammar/thigh";
+import { grammarChestCore, grammarCockpitHatch, cockpitInterfaces, cockpitView, cockpitArchitecture } from "./grammar/cockpit";
 import { validateAssembly, partOrigin } from "./assembly";
 import { topologyPool, topologyAffinity } from "./grammar/topology";
 import type { LimbTopology } from "./grammar/topology";
@@ -182,11 +183,59 @@ function thighArtifact(brief: Brief, prop: Proportions, rig: Rig): SlotArtifact 
   };
 }
 
+/**
+ * The chest core and the cockpit hatch are one design decision expressed in
+ * two slots, so they share an architecture record rather than being varied
+ * independently — otherwise the hatch language contradicts the plate it sits
+ * on. Neither goes through `refine`: their envelope is fixed by the studio's
+ * hand-placed collar / shoulder / Chest L/R sockets, so there is nothing for
+ * generate-and-select to search over. The critic still scores them.
+ */
+function chestArtifact(brief: Brief, prop: Proportions, rig: Rig, slot: "chestCore" | "cockpit"): SlotArtifact {
+  const view = cockpitView(brief);
+  const prims = slot === "chestCore" ? grammarChestCore(brief, prop) : grammarCockpitHatch(brief, prop);
+  const crit = critique(prims, brief);
+  const arch = cockpitArchitecture(brief);
+  const mass = massReportLimb(prims, []);
+  return {
+    slot,
+    prims,
+    joints: [],
+    hardpoints: [],
+    interfaces: slot === "chestCore" ? cockpitInterfaces(view) : [],
+    functional: {
+      // the torso does not sweep: it is the root the limbs are swept against,
+      // and its own articulation is the cervical column, checked with the head
+      romOk: true,
+      romCollisions: [],
+      jointMoment: mass.jointMoment,
+      mass: mass.mass,
+      com: mass.com,
+      load: {
+        jointTorque: { neck: rig.load.jointTorque.neck ?? 0.3 },
+        actuator: {},
+        rails: rig.load.member.torso!,
+        armourAllowance: rig.load.armour.torso ?? 1,
+        carriedMass: rig.load.bodyWeight,
+      },
+    },
+    aesthetic: {
+      score: crit.score,
+      penalties: crit.penalties,
+      notes: crit.notes,
+      variant: 0,
+      topology: `${arch.reactor}/${arch.breastplate}/${arch.hatch}/${arch.intake}`,
+      attempts: 1,
+    },
+  };
+}
+
 /** Design a single slot from a brief, given an already-built whole-body rig. */
 export function designSlotWithRig(slot: SlotId, brief: Brief, rig: Rig): SlotArtifact | null {
   const prop = resolveProportions(brief);
   if (slot === "shin") return shinArtifact(brief, prop, shinView(rig, "R"));
   if (slot === "thigh") return thighArtifact(brief, prop, rig);
+  if (slot === "chestCore" || slot === "cockpit") return chestArtifact(brief, prop, rig, slot);
   return null; // other slots still use the legacy generators for now
 }
 

@@ -109,8 +109,17 @@ export function critique(prims: Prim[], brief: Brief): Critique {
   const notes: string[] = [];
   if (prims.length === 0) return { score: 0, penalties: { empty: 1 }, notes: ["no geometry"] };
 
-  // one projection, shared by the metric vector and the silhouette rules below
-  const sil = measureSilhouette(rasterize(prims, "front", 96));
+  // One projection, shared by the metric vector and the silhouette rules below.
+  //
+  // It is taken over the ARMOUR, not the whole part. A brief's S/R band is a
+  // statement about the armour language; the internal frame is structure that
+  // every kit in a size class shares. On a limb the distinction barely matters
+  // because the armour is most of the outline anyway — but on a torso the
+  // cervical column and the shoulder yokes dominate the projection, and every
+  // chest measured the same 0.54 whatever its plates were doing. Excluding the
+  // frame is the same reasoning rule 14 already applies to buried geometry.
+  const skin = prims.filter((p) => p.tier !== "frame");
+  const sil = measureSilhouette(rasterize(skin.length > 1 ? skin : prims, "front", 96));
   const m = measureMetrics(prims, sil);
   // prims tagged into the same group are one logical mass (a curved shell is a
   // profile stack, not a pyramid of plates) — merge before layering analysis

@@ -58,7 +58,7 @@ import {
 } from "./geometry/equipment";
 
 import { createGeometryByID } from "./geometry/kitFactory";
-import { engineShin, engineThigh } from "./geometry/engineSlots";
+import { engineChestCore, engineCockpit, engineShin, engineThigh } from "./geometry/engineSlots";
 
 export type { Spec };
 
@@ -180,7 +180,7 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
       raw = collar(r);
       break;
     case "chestCore":
-      raw = chestCore(r);
+      raw = engineChestCore(variant);
       break;
     case "chest":
       raw = chest(r, isLeft);
@@ -189,7 +189,7 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
       raw = pec(r, isLeft);
       break;
     case "cockpit":
-      raw = createGeometryByID(variant, slotId, isLeft, r);
+      raw = engineCockpit(variant);
       break;
     case "abdomen":
       raw = abdomen(r);
