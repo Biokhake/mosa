@@ -1,4 +1,5 @@
 import { Canvas, useThree } from "@react-three/fiber";
+import { restFor, socketFor } from "@/lib/mech/reference/frame";
 import { ContactShadows, OrbitControls, Grid } from "@react-three/drei";
 import { Bloom, EffectComposer, N8AO, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
@@ -66,12 +67,20 @@ function MechRig() {
     return m;
   }, []);
 
+  // The whole body's proportions come from one kit: the chest is the part that
+  // carries the frame, so its variant names the figure everything else hangs on.
+  const bodyVariant = slots.chestCore?.variant ?? slots.pelvis?.variant ?? "";
+
   const root = poseRoot(poseId);
 
   const renderNode = (id: RigNodeId) => {
     const node = RIG_NODE_BY_ID[id];
     const parent = node.parent ? RIG_NODE_BY_ID[node.parent] : null;
-    const pr = parent ? parent.rest : ([0, 0, 0] as const);
+    // Sockets and rig rests come from the kit's own measured frame when it has
+    // one, so two kits of different proportion can share this studio. Kits with
+    // no measurements fall back to the catalogue's fixed table.
+    const rest = restFor(id, bodyVariant);
+    const pr = parent ? restFor(parent.id, bodyVariant) : ([0, 0, 0] as const);
     const pose = poseNodeRotation(id, poseId);
     const poff = poseNodeOffset(id, poseId);
     const gx = NODE_GROUP[id] ? groupXform[NODE_GROUP[id]!] : undefined;
@@ -80,9 +89,9 @@ function MechRig() {
     // region's groupXform. Everything distal — this node's own slots AND its
     // child nodes — inherits it. (Whole-body attitude is on the outer wrapper.)
     const position: [number, number, number] = [
-      node.rest[0] - pr[0] + poff[0] + (gx?.px ?? 0),
-      node.rest[1] - pr[1] + poff[1] + (gx?.py ?? 0),
-      node.rest[2] - pr[2] + poff[2] + (gx?.pz ?? 0),
+      rest[0] - pr[0] + poff[0] + (gx?.px ?? 0),
+      rest[1] - pr[1] + poff[1] + (gx?.py ?? 0),
+      rest[2] - pr[2] + poff[2] + (gx?.pz ?? 0),
     ];
     const rotation: [number, number, number] = [
       (pose[0] + (gx?.rx ?? 0)) * DEG,
@@ -96,7 +105,8 @@ function MechRig() {
         {(slotsByNode.get(id) ?? []).map((def) => {
           const st = slots[def.id];
           if (!st || !st.visible || st.variant === "none") return null;
-          const [dx, dy, dz] = explodeDir(def.socket);
+          const socket = socketFor(def.id, st.variant);
+          const [dx, dy, dz] = explodeDir(socket);
           const k = explode * 0.85;
           // groups with no rig node (back / weapon / extra) keep a per-slot xform
           const wg =
@@ -109,9 +119,9 @@ function MechRig() {
               key={def.id}
               userData={{ slotId: def.id }}
               position={[
-                def.socket[0] - node.rest[0] + st.px + (wg?.px ?? 0) + dx * k,
-                def.socket[1] - node.rest[1] + st.py + (wg?.py ?? 0) + dy * k,
-                def.socket[2] - node.rest[2] + st.pz + (wg?.pz ?? 0) + dz * k,
+                socket[0] - rest[0] + st.px + (wg?.px ?? 0) + dx * k,
+                socket[1] - rest[1] + st.py + (wg?.py ?? 0) + dy * k,
+                socket[2] - rest[2] + st.pz + (wg?.pz ?? 0) + dz * k,
               ]}
               rotation={[
                 (st.rx + (wg?.rx ?? 0)) * DEG,
