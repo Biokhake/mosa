@@ -359,20 +359,59 @@ function thigh(): Spec[] {
  * Shin, carrying the knee at its top. The front centre ridge is the feature
  * that makes this leg read from a distance; the ankle guard closes it below.
  */
+/**
+ * Shin. A real HGUC shin is not one shape resized — the assembly manual for
+ * this exact kit (Bandai HGUC 1/144, step 7 "LEFT LEG") shows it as roughly
+ * six distinct physical pieces: a knee joint block, a knee guard cap, a
+ * clamshell of TWO curved half-shells that together form the calf's rounded
+ * bulge, a straight rear spar behind them, a separate ankle joint block, and
+ * the foot (its own slot). The curve-and-line mixture Gundam's silhouette is
+ * known for comes from THAT composition, not from bending one box.
+ *
+ * Landmarks, local to this socket (measured off the derived frame): the knee
+ * pivot sits at y=+0.212, the ankle pivot at y=-0.173. The shell stops well
+ * short of both — a static shell that reaches the pivot is what jams a joint.
+ */
 function shin(): Spec[] {
-  // socket y 0.28 — knee 0.460..0.560, shell 0.140..0.460, ankle at 0.100
+  const kneeY = 0.212;
+  const ankleY = -0.173;
+  const shellTop = 0.15; // 0.06 clear of the knee pivot
+  const shellBot = -0.135; // 0.04 clear of the ankle pivot
+
+  // The clamshell bulge: three same-material bands, widest a third of the way
+  // down (the calf), narrowing toward the ankle. Same material + no gap
+  // between consecutive bands means the CSG merge fuses them into one
+  // continuous curved surface — this is the "two curved halves" reading one
+  // continuous profile instead of two visible clamshell seams.
+  const bandY = [shellTop, 0.06, -0.05, shellBot];
+  const bandR = [0.058, 0.076, 0.066, 0.048];
+  const shell: Spec[] = [];
+  for (let i = 0; i < bandY.length - 1; i++) {
+    const y0 = bandY[i]!;
+    const y1 = bandY[i + 1]!;
+    shell.push(C("prim", bandR[i]!, bandR[i + 1]!, y0 - y1, 0, (y0 + y1) / 2, 0.012, 0, 0, 0, 16));
+  }
+
   return [
-    C("joint", 0.04, 0.04, 0.095, 0, 0.2, 0.012, 0, 0, PI2, 12),
-    B("sec", 0.095, 0.07, 0.1, 0, 0.2, 0.03),
-    Wedge("prim", 0.108, 0.058, 0.07, 0, 0.231, 0.032, -0.1),
-    B("prim", 0.15, 0.29, 0.13, 0, 0.022, 0.0),
-    Wedge("prim", 0.082, 0.275, 0.055, 0, 0.022, 0.07),
-    Trap("prim", 0.125, 0.15, 0.048, 0, -0.108, 0.0, 0, 0, 0, 0.125),
-    B("sec", 0.105, 0.155, 0.04, 0, 0.028, -0.07),
-    // ankle guard — the ankle slot is gone, this owns it
-    B("prim", 0.132, 0.05, 0.105, 0, -0.126, 0.005),
-    C("joint", 0.03, 0.03, 0.085, 0, -0.146, 0, 0, 0, PI2, 12),
-    B("trim", 0.062, 0.018, 0.024, 0, -0.112, 0.058),
+    // knee joint block — the pivot's own housing, clear of everything static
+    C("joint", 0.036, 0.036, 0.075, 0, kneeY, 0.03, 0, 0, PI2, 12),
+    // knee guard cap — flat, straight-edged: the line that bridges the joint
+    // to the curved shell below it
+    Wedge("prim", 0.1, 0.045, 0.06, 0, 0.171, 0.05, -0.14),
+
+    ...shell,
+
+    // rear spar — the straight structural line breaking up the front curve,
+    // exactly where the manual's separate frame rail sits
+    B("sec", 0.088, 0.255, 0.03, 0, 0.008, -0.075),
+    // clamshell seam: a thin raised mould line down the shell's front centre
+    B("dark", 0.011, 0.24, 0.008, 0, 0.008, 0.083),
+
+    // ankle transition — short, stops before the pivot; the joint block
+    // (not this) is what actually meets it
+    B("prim", 0.112, 0.02, 0.09, 0, -0.145, 0.005),
+    C("joint", 0.028, 0.028, 0.032, 0, ankleY, 0, 0, 0, PI2, 12),
+    B("trim", 0.05, 0.014, 0.02, 0, -0.113, 0.055),
   ];
 }
 
