@@ -276,8 +276,12 @@ export function specsFor(slotId: string, variant: string, beamZ = 1): Spec[] {
 }
 
 export function disposePart(group: THREE.Group) {
+  // Mesh geometry is NOT this call's to dispose — buildPartGeometry hands out
+  // the same cached BufferGeometry to every future call for this (slot,
+  // variant), including the very next paint tweak. Disposing it here would
+  // free the GPU buffers out from under whichever instance rebuilds next.
+  // LineSegments (edges) are rebuilt fresh per call and are fine to dispose.
   group.traverse((o) => {
-    if (o instanceof THREE.Mesh) o.geometry.dispose();
     if (o instanceof THREE.LineSegments) o.geometry.dispose();
   });
 }
@@ -605,26 +609,30 @@ function normalizeForMerge(src: THREE.BufferGeometry): THREE.BufferGeometry {
   return g;
 }
 
-export function buildPart(
-  slotId: string,
-  variant: string,
-  paint: string | null,
-  edges: boolean,
-  theme: "light" | "dark" = "dark",
-  light: string | null = null,
-  beamZ = 1,
-  paint2: string | null = null,
-): THREE.Group {
-  const pal: Palette = getPalette(variant, paint, isVisorSlot(slotId), light, paint2);
+/**
+ * The per-material geometry for one (slot, variant) — the expensive half of
+ * a part: every primitive built, mirrored, placed, and CSG-unioned into one
+ * continuous surface per material bucket (see geometry/csgMerge.ts).
+ *
+ * None of that depends on paint, theme, or light — only on WHICH shapes exist
+ * (slotId + variant + beamZ). Splitting it out and caching it is what keeps a
+ * colour-slider drag cheap: `buildPart` used to redo this whole pipeline on
+ * every paint tweak because paint sat in the same function, which was fine
+ * when the merge step was a plain concatenation and became a visible stutter
+ * once it became a real boolean union.
+ */
+const partGeoCache = new Map<string, Partial<Record<MatKey, THREE.BufferGeometry>>>();
+
+function buildPartGeometry(slotId: string, variant: string, beamZ: number): Partial<Record<MatKey, THREE.BufferGeometry>> {
+  const cacheKey = `${slotId}|${variant}|${beamZ}`;
+  const hit = partGeoCache.get(cacheKey);
+  if (hit) return hit;
+
   const rec = getRecipe(variant);
   const specs = specsFor(slotId, variant, beamZ);
-  const g = new THREE.Group();
-  g.name = slotId;
-  g.userData.slotId = slotId;
   const segs = rec.segs;
   const isLeft = isLeftSlot(slotId) && !slotId.startsWith("extra");
   const buckets: Partial<Record<MatKey, THREE.BufferGeometry[]>> = {};
-  const edgeParts: THREE.BufferGeometry[] = [];
 
   for (const sp of specs) {
     let geo: THREE.BufferGeometry;
@@ -715,13 +723,10 @@ export function buildPart(
     geo.dispose();
 
     (buckets[sp.m] ??= []).push(placed);
-    if (edges) {
-      const e = new THREE.EdgesGeometry(placed, 28);
-      edgeParts.push(e);
-    }
   }
 
-  // ---- one mesh per material, one line object for the whole part ----------
+  // ---- one mesh per material, unioned once and cached ---------------------
+  const result: Partial<Record<MatKey, THREE.BufferGeometry>> = {};
   for (const key of Object.keys(buckets) as MatKey[]) {
     const list = buckets[key]!;
     if (!list.length) continue;
@@ -730,22 +735,57 @@ export function buildPart(
     // actually fixes the "cans glued together" read.
     const merged = list.length === 1 ? list[0]! : mergeBucketCSG(list);
     if (list.length > 1) for (const gg of list) gg.dispose();
-    if (!merged) continue;
-    const mesh = new THREE.Mesh(merged, pal[key]);
+    if (merged) result[key] = merged;
+  }
+
+  partGeoCache.set(cacheKey, result);
+  return result;
+}
+
+export function buildPart(
+  slotId: string,
+  variant: string,
+  paint: string | null,
+  edges: boolean,
+  theme: "light" | "dark" = "dark",
+  light: string | null = null,
+  beamZ = 1,
+  paint2: string | null = null,
+): THREE.Group {
+  const pal: Palette = getPalette(variant, paint, isVisorSlot(slotId), light, paint2);
+  const buckets = buildPartGeometry(slotId, variant, beamZ);
+  const g = new THREE.Group();
+  g.name = slotId;
+  g.userData.slotId = slotId;
+
+  for (const key of Object.keys(buckets) as MatKey[]) {
+    const geo = buckets[key];
+    if (!geo) continue;
+    const mesh = new THREE.Mesh(geo, pal[key]);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.userData.slotId = slotId;
     g.add(mesh);
   }
 
-  if (edgeParts.length) {
-    const mergedEdges = edgeParts.length === 1 ? edgeParts[0]! : mergeGeometries(edgeParts, false);
-    if (edgeParts.length > 1) for (const ee of edgeParts) ee.dispose();
-    if (mergedEdges) {
-      const e = new THREE.LineSegments(mergedEdges, getLineMat(theme));
-      e.userData.slotId = slotId;
-      e.raycast = () => {};
-      g.add(e);
+  // Edges are cheap to pull off an already-built surface (no CSG involved),
+  // so they are recomputed per call rather than cached with the geometry —
+  // unlike the mesh geometry above, this one IS this call's to dispose.
+  if (edges) {
+    const edgeParts: THREE.BufferGeometry[] = [];
+    for (const key of Object.keys(buckets) as MatKey[]) {
+      const geo = buckets[key];
+      if (geo) edgeParts.push(new THREE.EdgesGeometry(geo, 28));
+    }
+    if (edgeParts.length) {
+      const mergedEdges = edgeParts.length === 1 ? edgeParts[0]! : mergeGeometries(edgeParts, false);
+      if (edgeParts.length > 1) for (const ee of edgeParts) ee.dispose();
+      if (mergedEdges) {
+        const e = new THREE.LineSegments(mergedEdges, getLineMat(theme));
+        e.userData.slotId = slotId;
+        e.raycast = () => {};
+        g.add(e);
+      }
     }
   }
 
