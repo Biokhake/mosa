@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { mergeBucketCSG } from "./geometry/csgMerge";
 import type { MatKey, Palette } from "./palette";
 import { getLineMat, getPalette } from "./palette";
 import { isLeftSlot, isVisorSlot } from "./catalog";
@@ -281,7 +282,7 @@ export function disposePart(group: THREE.Group) {
   });
 }
 
-function createWedgeGeometry(w: number, h: number, d: number): THREE.BufferGeometry {
+export function createWedgeGeometry(w: number, h: number, d: number): THREE.BufferGeometry {
   const hw = w / 2;
   const hh = h / 2;
   const hd = d / 2;
@@ -363,7 +364,7 @@ function createWedgeGeometry(w: number, h: number, d: number): THREE.BufferGeome
   return geo;
 }
 
-function createTrapezoidGeometry(wTop: number, wBot: number, h: number, d = 0.04): THREE.BufferGeometry {
+export function createTrapezoidGeometry(wTop: number, wBot: number, h: number, d = 0.04): THREE.BufferGeometry {
   const hwT = wTop / 2;
   const hwB = wBot / 2;
   const hh = h / 2;
@@ -724,7 +725,10 @@ export function buildPart(
   for (const key of Object.keys(buckets) as MatKey[]) {
     const list = buckets[key]!;
     if (!list.length) continue;
-    const merged = list.length === 1 ? list[0]! : mergeGeometries(list, false);
+    // Union same-material primitives into one continuous manifold instead of
+    // just concatenating them — see geometry/csgMerge.ts for why this is what
+    // actually fixes the "cans glued together" read.
+    const merged = list.length === 1 ? list[0]! : mergeBucketCSG(list);
     if (list.length > 1) for (const gg of list) gg.dispose();
     if (!merged) continue;
     const mesh = new THREE.Mesh(merged, pal[key]);
