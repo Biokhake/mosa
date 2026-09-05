@@ -1,6 +1,8 @@
 {
-  "name": "MOSA: Modular Omni-Support Automata / Mimetic Operating System Architecture",
-  "description": "Modular Omni-Support Automata / Mimetic Operating System Architecture — humanoid mix-build hangar.",
+  "name": "MOSA Mapping",
+  "description": "MOSA Mapping / Capture Engine \u2014 front+back image \u2192 part slots. New mapping engine (not Claude kit gen). Dev :3020.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
