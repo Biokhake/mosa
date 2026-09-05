@@ -270,6 +270,7 @@ function StudioEnv() {
   return null;
 }
 
+
 function CaptureBridge() {
   const gl = useThree((s) => s.gl);
   useEffect(() => {

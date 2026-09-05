@@ -1,0 +1,17 @@
+{
+  "name": "mapping-engine",
+  "aka": ["capture-engine"],
+  "input": ["front", "back"],
+  "slots": {
+    "Head": ["Head1", "Head2", "Head3", "Face", "Eye", "Acc1", "Acc2", "Acc3"],
+    "Torso": ["Chest1", "Chest2", "Chest3", "Body1", "Body2"],
+    "Waist": ["Front", "Side", "Back"],
+    "ArmL": ["Shoulder1", "Shoulder2", "Upper", "Forearm", "Vambrace", "Hand"],
+    "ArmR": ["Shoulder1", "Shoulder2", "Upper", "Forearm", "Vambrace", "Hand"],
+    "LegL": ["Thigh", "Shin1", "Shin2", "Foot"],
+    "LegR": ["Thigh", "Shin1", "Shin2", "Foot"],
+    "Back": ["PackCore", "Thruster", "BinderR", "BinderL", "Stabilizer"],
+    "Weapons": ["WeaponR", "WeaponL"]
+  },
+  "note": "Body is Body1 and Body2 (not Body12). Leg L assumed (user typed Leg R twice)."
+}
